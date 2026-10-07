@@ -1,0 +1,23 @@
+{
+  "name": "garage-door-site-engine",
+  "version": "1.0.0",
+  "description": "Data-driven generation engine that turns one Excel dataset into 1,000+ unique, production-quality garage-door websites.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "gd-engine": "./src/cli.js"
+  },
+  "scripts": {
+    "preview": "node src/cli.js --preview 5",
+    "one": "node src/cli.js --business",
+    "all": "node src/cli.js --all",
+    "themes": "node src/cli.js --theme-gallery",
+    "serve": "node scripts/serve.mjs",
+    "qa": "node src/cli.js --preview 5 --qa-only"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "license": "UNLICENSED"
+}

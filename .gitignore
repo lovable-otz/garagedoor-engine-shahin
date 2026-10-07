@@ -1,0 +1,16 @@
+# Generated per build - folders are kept (via .gitkeep), their contents are not.
+#   contents/<domain>/  pulled from each site's `content` branch
+#   engine/dist/<domain>/  built site (own git repo, pushed to that site's `main`)
+/contents/*
+!/contents/.gitkeep
+/engine/dist/*
+!/engine/dist/.gitkeep
+
+# Not versioned: photo/logo library is copied to each machine by hand
+/images/
+
+# Scratch / local-only
+/.tmp-content-pull/
+.claude/
+node_modules/
+.DS_Store
