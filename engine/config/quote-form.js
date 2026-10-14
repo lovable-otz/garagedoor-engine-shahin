@@ -13,7 +13,13 @@
  * else changes - quoteEmbed() already prefers a real embed over the built-in
  * fallback form.
  */
-export const QUOTE_FORM_URL = 'https://api.leadconnectorhq.com/widget/form/HLvNkVjykdJyk0dzogn8';
+// 2026-10-12, user: "use this form enginewise now in the request-a-quote page"
+// ("Garage door new forms" / "Contact Us | Garage Door"). Applied to EVERY
+// business by normalize.js - QUOTE_FORM_DOMAINS below is kept only as history
+// of the earlier per-domain rollout and no longer gates anything.
+export const QUOTE_FORM_URL = 'https://api.leadconnectorhq.com/widget/form/9edkR66EHmW5UBwtrYry';
+export const QUOTE_FORM_NAME = 'Contact Us | Garage Door';
+export const QUOTE_FORM_HEIGHT = 1336;
 
 export const QUOTE_FORM_DOMAINS = new Set([
   // ---- 30 August 2026 batch (serials 236-256)

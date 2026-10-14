@@ -12,6 +12,7 @@
  *
  * Options:
  *   --out <dir>          output directory (default dist/generated-sites)
+ *   --contents <dir>     content root to read contents/<domain>/ from (default ../contents)
  *   --workbook <path>    source .xlsx (default ../GarageDoor_1000_SITE_BUILD_SHEET.xlsx)
  *   --fresh-registry     ignore the persisted design registry (fresh uniqueness plan)
  *   --no-qa              skip QA
@@ -30,6 +31,7 @@ import { assignDesign } from './engine/seed.js';
 import { THEMES, THEME_IDS } from '../config/themes.js';
 import { runBatch } from './generator/batch.js';
 import { DELIVERED_SITES } from '../config/delivered-sites.js';
+import { LOCKED_SITES, unlockedFrom } from '../config/locked-sites.js';
 import { subSeed, seedFor } from './util/hash.js';
 
 function parseArgs(argv) {
@@ -116,8 +118,13 @@ function main() {
   const write = !args.plan;
   const qa = !args['no-qa'];
   const freshRegistry = Boolean(args['fresh-registry']);
+  // Read site content from another folder (contents/<domain>/ layout), e.g.
+  // a working copy outside this repo. Content is resolved at build time, so
+  // overriding the configured path here is enough.
+  if (args.contents) config.paths.contentDir = path.resolve(args.contents);
 
   console.log(`\nGarage-Door Site Engine`);
+  if (args.contents) console.log(`Contents: ${config.paths.contentDir}`);
   console.log(`Workbook: ${dataset.workbook}`);
   console.log(`Businesses: ${dataset.businesses.length} (generatable: ${dataset.generatable.length}, errors: ${dataset.validation.summary.errors})`);
   console.log(`Themes available: ${THEMES.length}\n`);
@@ -161,6 +168,19 @@ function main() {
     title = `Garage-Door Sites - Preview (${n})`;
     reportName = 'preview-report';
   }
+
+  // LOCKED SITES (config/locked-sites.js): only built when --unlock names
+  // that exact domain. A single --business on a locked site is refused
+  // outright rather than silently skipped, so it can't look like it ran.
+  const unlocked = unlockedFrom(args.unlock);
+  if (args.business && LOCKED_SITES.has(businesses[0].domain.toLowerCase()) && !unlocked.has(businesses[0].domain.toLowerCase())) {
+    console.error(`LOCKED: ${businesses[0].domain} is locked (config/locked-sites.js) - not rebuilt. Only with the user's explicit instruction for this site: add --unlock ${businesses[0].domain}`);
+    process.exit(2);
+  }
+  const lockedOut = businesses.filter((b) => LOCKED_SITES.has(b.domain.toLowerCase()) && !unlocked.has(b.domain.toLowerCase()));
+  if (lockedOut.length) console.log(`Skipping ${lockedOut.length} locked site(s): ${lockedOut.map((b) => b.domain).join(', ')}`);
+  businesses = businesses.filter((b) => !lockedOut.includes(b));
+  for (const b of businesses) if (unlocked.has(b.domain.toLowerCase())) b.__unlocked = true;
 
   const t0 = Date.now();
   const res = runBatch({

@@ -25,6 +25,11 @@ const FULL_WIDTH_CSS = /* css */ `
 .brandbar--glass-panel-grid .brandbar__row{max-width:none}
 `;
 
+/** Remove CSS block comments and the blank lines they leave behind. */
+function stripCssComments(css) {
+  return css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\n\s*\n+/g, '\n');
+}
+
 export function generateCss(design) {
   const t = resolveTokens(design);
   const mood = t._mood;
@@ -35,12 +40,18 @@ export function generateCss(design) {
     .map(([k, val]) => `  --${k}: ${val};`)
     .join('\n');
 
-  return /* css */ `
+  // Comments are authoring notes (they name other client sites and dates) -
+  // stripped from the shipped stylesheet so they never reach view-source.
+  return stripCssComments(/* css */ `
 :root{
 ${rootVars}
   --container: min(var(--max-w), 100% - (var(--pad-x) * 2));
   --focus: 0 0 0 3px color-mix(in srgb, var(--c-accent) 55%, transparent);
-  --grad-brand: linear-gradient(135deg, var(--c-primary), var(--c-accent));
+  /* Ends on the contrast-safe band colour, not the raw accent: text sits on
+     this gradient in several places (filled CTA banner, gradient-pill buttons,
+     left-banner hero) and white on a bright accent measured 3.46 (Chandler,
+     2026-10-12 contrast sweep). Decorative bars/dots look the same. */
+  --grad-brand: linear-gradient(135deg, var(--c-primary), var(--c-grad-band-end));
   /* For background-clip:text gradient text ONLY - raw primary/accent aren't
      guaranteed readable as TEXT (that's what --c-link/--c-accent-link fix),
      so gradient text needs its own contrast-safe stops, not --grad-brand. */
@@ -66,7 +77,7 @@ body{margin:0;background:var(--c-bg);color:var(--c-text);font-family:var(--font-
   display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 img{max-width:100%;height:auto;display:block}
 a{color:var(--c-link);text-decoration:none}
-h1,h2,h3,h4{font-family:var(--font-heading);font-weight:var(--weight-heading);
+h1,h2,h3,h4{overflow-wrap:break-word;font-family:var(--font-heading);font-weight:var(--weight-heading);
   letter-spacing:var(--tracking-heading);line-height:1.08;margin:0 0 .5em}
 h1{font-size:var(--fs-h1)}h2{font-size:var(--fs-h2)}h3{font-size:var(--fs-h3)}
 p{margin:0 0 1em}
@@ -112,7 +123,7 @@ main{flex:1;overflow-x:clip}
 .section--alt{background:var(--c-surface-alt)}
 .section--tint{background:var(--grad-soft)}
 .section--dark{background:var(--c-secondary);color:var(--c-on-secondary)}
-.section--dark .lead,.section--dark p,.section--brand .lead,.section--brand p{color:color-mix(in srgb,currentColor 82%,transparent)}
+.section--dark .lead,.section--dark p,.section--brand .lead,.section--brand p{color:color-mix(in srgb,currentColor 92%,transparent)}
 /* emergency band: heading+copy on one side, a CTA button on the other. Was
    inline styles with no responsive rule at all - flex-wrap:wrap alone just
    drops the button onto its own line at any width where the two don't fit
@@ -601,7 +612,7 @@ main{flex:1;overflow-x:clip}
 .hero__grid{display:grid;gap:clamp(1.5rem,4vw,3.5rem);align-items:stretch}
 .hero__badge{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--font-heading);font-weight:700;font-size:var(--fs-xs);
   letter-spacing:.06em;text-transform:uppercase;padding:.5rem .9rem;border-radius:var(--radius-pill);
-  background:color-mix(in srgb,var(--c-primary) 12%,transparent);color:var(--c-link);border:1px solid color-mix(in srgb,var(--c-primary) 20%,transparent);margin-bottom:1.4rem}
+  background:color-mix(in srgb,var(--c-primary) 12%,transparent);color:color-mix(in srgb,var(--c-link) 80%,var(--c-text));border:1px solid color-mix(in srgb,var(--c-primary) 20%,transparent);margin-bottom:1.4rem}
 .hero__badge .dot{width:8px;height:8px;border-radius:50%;background:var(--grad-brand)}
 /* Was clamp(2.1rem,5.2vw,var(--fs-h1)) - var(--fs-h1) is the theme's raw
    display size (uncapped, meant for a FULL-width headline), so at wide
@@ -629,14 +640,14 @@ main{flex:1;overflow-x:clip}
 .hero--split-image-left .hero__grid{grid-template-columns:.95fr 1.05fr}
 .hero--split-image-left .hero__copy{order:2}
 .hero--centered-overlay{text-align:center}
-.hero--centered-overlay .hero__grid{grid-template-columns:1fr}
+.hero--centered-overlay .hero__grid{grid-template-columns:minmax(0,1fr)}
 .hero--centered-overlay .hero__sub{margin-inline:auto}
 .hero--centered-overlay .hero__cta,.hero--centered-overlay .hero__chips{justify-content:center}
 .hero--centered-overlay .hero__badge{margin-inline:auto}
 .hero--centered-overlay .hero__media{margin-top:2.5rem;aspect-ratio:16/6}
 .hero--left-banner-cta{color:var(--c-on-primary)}
 .hero--left-banner-cta::before{background:var(--grad-brand);opacity:1}
-.hero--left-banner-cta .hero__sub{color:color-mix(in srgb,var(--c-on-primary) 85%,transparent)}
+.hero--left-banner-cta .hero__sub{color:var(--c-on-primary)}
 .hero--left-banner-cta .hero__grid{grid-template-columns:1.15fr .85fr}
 .hero--left-banner-cta .hero__badge{background:color-mix(in srgb,#fff 18%,transparent);color:var(--c-on-primary);border-color:transparent}
 .hero--left-banner-cta .btn--primary{background:var(--c-on-primary);color:var(--c-primary)}
@@ -700,7 +711,7 @@ main{flex:1;overflow-x:clip}
    strip keeps a (much wider) cap so its 4 numbers don't sprawl with huge
    gaps between them on ultra-wide screens. */
 .hero--fullbleed-dark .hero__stats,.hero--text-only-underline .hero__stats,.hero--diagnostic-panel .hero__stats{max-width:60rem;margin-inline:auto}
-.hero--fullbleed-dark .hero__grid,.hero--text-only-underline .hero__grid,.hero--diagnostic-panel .hero__grid{grid-template-columns:1fr}
+.hero--fullbleed-dark .hero__grid,.hero--text-only-underline .hero__grid,.hero--diagnostic-panel .hero__grid{grid-template-columns:minmax(0,1fr)}
 /* .82/.88 opacity measured 4.16:1 / 4.51:1 against a worst-case (near-white)
    photo behind the standard .6 dark overlay - the .82 sub-text value was
    actually BELOW the 4.5:1 AA minimum for normal text (only the full-white h1
@@ -716,7 +727,7 @@ main{flex:1;overflow-x:clip}
    contrast - completely invisible at that end of the gradient, ~1.3:1 at
    the other end. WCAG AA needs 4.5:1). Use --c-on-primary for both, same
    token already proven safe for this panel's buttons/heading/badge. */
-.hero--color-block-split .hero__chips,.hero--left-banner-cta .hero__chips{color:color-mix(in srgb,var(--c-on-primary) 92%,transparent)}
+.hero--color-block-split .hero__chips,.hero--left-banner-cta .hero__chips{color:var(--c-on-primary)}
 .hero--color-block-split .hero__chips .chip-ico,.hero--left-banner-cta .hero__chips .chip-ico{color:var(--c-on-primary)}
 /* Found while auditing the new hero-stats cards variant: this badge used the
    same lightening-tint pattern (14% white) as that variant, measuring
@@ -737,6 +748,15 @@ main{flex:1;overflow-x:clip}
 .hero--fullbleed-dark .cta-outline-gold .btn--emergency,.hero--text-only-underline .cta-outline-gold .btn--emergency,.hero--diagnostic-panel .cta-outline-gold .btn--emergency,
 .hero--fullbleed-dark .cta-outline-gold .btn--ghost,.hero--text-only-underline .cta-outline-gold .btn--ghost,.hero--diagnostic-panel .cta-outline-gold .btn--ghost{
   color:#ffffff;border-color:#ffffff}
+/* GHOST BUTTON ON A DARK PHOTO HERO (user 2026-10-12, Georgetown inner
+   pages): the secondary "All services" button kept the light-page ghost
+   style - brand-red text on a 6% red tint - which all but vanished on the
+   dark photo overlay. Every CTA skin, every one of the three dark heroes:
+   white text + white outline on a light glass fill; fills white on hover. */
+:is(.hero--fullbleed-dark,.hero--text-only-underline,.hero--diagnostic-panel) .hero__cta .btn--ghost{
+  color:#ffffff;background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.85);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:none}
+:is(.hero--fullbleed-dark,.hero--text-only-underline,.hero--diagnostic-panel) .hero__cta .btn--ghost:hover{
+  background:#ffffff;color:#14161b;border-color:#ffffff}
 .hero--text-only-underline h1 span.hl,.hero h1 .hl{background:var(--grad-brand-text);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero--color-block-split{padding:0}
 .hero--color-block-split::before{display:none}
@@ -751,7 +771,7 @@ main{flex:1;overflow-x:clip}
 .hero--color-block-split .hero__grid{grid-template-columns:1fr 1fr;gap:0;align-items:stretch;
   max-width:var(--max-w);margin-inline:auto}
 .hero--color-block-split .hero__copy{background:var(--grad-band);color:var(--c-on-primary);padding:clamp(2.2rem,5vw,4.5rem);display:flex;flex-direction:column;justify-content:center}
-.hero--color-block-split .hero__sub{color:color-mix(in srgb,var(--c-on-primary) 85%,transparent)}
+.hero--color-block-split .hero__sub{color:var(--c-on-primary)}
 .hero--color-block-split .hero__badge{background:color-mix(in srgb,#fff 18%,transparent);color:var(--c-on-primary);border-color:transparent}
 /* min-height:100% + align-self:stretch with NO cap let this match whatever
    height .hero__copy's own content computes to - a long business/city name
@@ -795,13 +815,6 @@ main{flex:1;overflow-x:clip}
 :is([data-site="paysongaragedoorpros.com"],[data-site="pasadenagaragedoorpros.com"],[data-site="renogaragedoorpros.com"]) .svc--wide-spaced h3{padding-inline:1.25rem;margin-bottom:.5rem}
 :is([data-site="paysongaragedoorpros.com"],[data-site="pasadenagaragedoorpros.com"],[data-site="renogaragedoorpros.com"]) .svc--wide-spaced p{padding-inline:1.25rem;line-height:1.6;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden}
 :is([data-site="paysongaragedoorpros.com"],[data-site="pasadenagaragedoorpros.com"],[data-site="renogaragedoorpros.com"]) .svc--wide-spaced .svc__more{margin-inline:1.25rem}
-/* The 16-site 9/14 batch (user 2026-09-14, first reported on Orlando): the quote page's
-   "Prefer to talk?" number was a plain inline link - shown as a real call button instead.
-   Scoped to these 16 by data-site so the 45 live sites are untouched. */
-:is([data-site="phoenixgaragedoorco.com"],[data-site="parmagaragedoorpros.com"],[data-site="reynoldsburggaragedoorpros.com"],[data-site="orlandogaragedoorpros.com"],[data-site="raleighgaragedoorco.com"],[data-site="paysongaragedoorpros.com"],[data-site="pasadenagaragedoorpros.com"],[data-site="prospergaragedoorpros.com"],[data-site="petalumagaragedoorpros.com"],[data-site="pittsburghgaragedoorpros.com"],[data-site="renogaragedoorpros.com"],[data-site="philadelphiagaragedoorpros.com"],[data-site="rochesterhillsgaragedoorpros.com"],[data-site="rockwallgaragedoorpros.com"],[data-site="prescottvalleygaragedoorpros.com"],[data-site="porthurongaragedoorpros.com"],[data-site="searcygaragedoorpros.com"],[data-site="tomsrivergaragedoorpros.com"],[data-site="youngstowngaragedoorpros.com"],[data-site="venicegaragedoorpros.com"],[data-site="santamonicagaragedoorpros.com"],[data-site="springfieldgaragedoorpros.com"],[data-site="sandiegogaragedoorco.com"],[data-site="strongsvillegaragedoorpros.com"],[data-site="spanishforkgaragedoorpros.com"],[data-site="sanmarcosgaragedoorpros.com"],[data-site="abilenegaragedoorpros.com"],[data-site="wenatcheegaragedoorpros.com"],[data-site="tracygaragedoorpros.com"],[data-site="weatherfordgaragedoorpros.com"],[data-site="westbendgaragedoorpros.com"],[data-site="texascitygaragedoorpros.com"],[data-site="springfieldgaragedoorco.com"],[data-site="sunprairiegaragedoorpros.com"],[data-site="vernonhillsgaragedoorpros.com"]) .quote-copy__call{display:flex;align-items:center;flex-wrap:wrap;gap:.6rem .8rem}
-:is([data-site="phoenixgaragedoorco.com"],[data-site="parmagaragedoorpros.com"],[data-site="reynoldsburggaragedoorpros.com"],[data-site="orlandogaragedoorpros.com"],[data-site="raleighgaragedoorco.com"],[data-site="paysongaragedoorpros.com"],[data-site="pasadenagaragedoorpros.com"],[data-site="prospergaragedoorpros.com"],[data-site="petalumagaragedoorpros.com"],[data-site="pittsburghgaragedoorpros.com"],[data-site="renogaragedoorpros.com"],[data-site="philadelphiagaragedoorpros.com"],[data-site="rochesterhillsgaragedoorpros.com"],[data-site="rockwallgaragedoorpros.com"],[data-site="prescottvalleygaragedoorpros.com"],[data-site="porthurongaragedoorpros.com"],[data-site="searcygaragedoorpros.com"],[data-site="tomsrivergaragedoorpros.com"],[data-site="youngstowngaragedoorpros.com"],[data-site="venicegaragedoorpros.com"],[data-site="santamonicagaragedoorpros.com"],[data-site="springfieldgaragedoorpros.com"],[data-site="sandiegogaragedoorco.com"],[data-site="strongsvillegaragedoorpros.com"],[data-site="spanishforkgaragedoorpros.com"],[data-site="sanmarcosgaragedoorpros.com"],[data-site="abilenegaragedoorpros.com"],[data-site="wenatcheegaragedoorpros.com"],[data-site="tracygaragedoorpros.com"],[data-site="weatherfordgaragedoorpros.com"],[data-site="westbendgaragedoorpros.com"],[data-site="texascitygaragedoorpros.com"],[data-site="springfieldgaragedoorco.com"],[data-site="sunprairiegaragedoorpros.com"],[data-site="vernonhillsgaragedoorpros.com"]) .quote-copy__call a{display:inline-flex;align-items:center;gap:.5rem;min-height:46px;padding:.7rem 1.3rem;border-radius:var(--radius-pill,999px);background:var(--c-primary);color:var(--c-on-primary);font-weight:700;text-decoration:none;box-shadow:0 10px 24px -12px var(--shadow-tint,rgba(0,0,0,.35));transition:transform .16s ease,filter .16s ease}
-:is([data-site="phoenixgaragedoorco.com"],[data-site="parmagaragedoorpros.com"],[data-site="reynoldsburggaragedoorpros.com"],[data-site="orlandogaragedoorpros.com"],[data-site="raleighgaragedoorco.com"],[data-site="paysongaragedoorpros.com"],[data-site="pasadenagaragedoorpros.com"],[data-site="prospergaragedoorpros.com"],[data-site="petalumagaragedoorpros.com"],[data-site="pittsburghgaragedoorpros.com"],[data-site="renogaragedoorpros.com"],[data-site="philadelphiagaragedoorpros.com"],[data-site="rochesterhillsgaragedoorpros.com"],[data-site="rockwallgaragedoorpros.com"],[data-site="prescottvalleygaragedoorpros.com"],[data-site="porthurongaragedoorpros.com"],[data-site="searcygaragedoorpros.com"],[data-site="tomsrivergaragedoorpros.com"],[data-site="youngstowngaragedoorpros.com"],[data-site="venicegaragedoorpros.com"],[data-site="santamonicagaragedoorpros.com"],[data-site="springfieldgaragedoorpros.com"],[data-site="sandiegogaragedoorco.com"],[data-site="strongsvillegaragedoorpros.com"],[data-site="spanishforkgaragedoorpros.com"],[data-site="sanmarcosgaragedoorpros.com"],[data-site="abilenegaragedoorpros.com"],[data-site="wenatcheegaragedoorpros.com"],[data-site="tracygaragedoorpros.com"],[data-site="weatherfordgaragedoorpros.com"],[data-site="westbendgaragedoorpros.com"],[data-site="texascitygaragedoorpros.com"],[data-site="springfieldgaragedoorco.com"],[data-site="sunprairiegaragedoorpros.com"],[data-site="vernonhillsgaragedoorpros.com"]) .quote-copy__call a::before{content:"";width:18px;height:18px;flex:0 0 auto;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z'/%3E%3C/svg%3E") center/contain no-repeat}
-:is([data-site="phoenixgaragedoorco.com"],[data-site="parmagaragedoorpros.com"],[data-site="reynoldsburggaragedoorpros.com"],[data-site="orlandogaragedoorpros.com"],[data-site="raleighgaragedoorco.com"],[data-site="paysongaragedoorpros.com"],[data-site="pasadenagaragedoorpros.com"],[data-site="prospergaragedoorpros.com"],[data-site="petalumagaragedoorpros.com"],[data-site="pittsburghgaragedoorpros.com"],[data-site="renogaragedoorpros.com"],[data-site="philadelphiagaragedoorpros.com"],[data-site="rochesterhillsgaragedoorpros.com"],[data-site="rockwallgaragedoorpros.com"],[data-site="prescottvalleygaragedoorpros.com"],[data-site="porthurongaragedoorpros.com"],[data-site="searcygaragedoorpros.com"],[data-site="tomsrivergaragedoorpros.com"],[data-site="youngstowngaragedoorpros.com"],[data-site="venicegaragedoorpros.com"],[data-site="santamonicagaragedoorpros.com"],[data-site="springfieldgaragedoorpros.com"],[data-site="sandiegogaragedoorco.com"],[data-site="strongsvillegaragedoorpros.com"],[data-site="spanishforkgaragedoorpros.com"],[data-site="sanmarcosgaragedoorpros.com"],[data-site="abilenegaragedoorpros.com"],[data-site="wenatcheegaragedoorpros.com"],[data-site="tracygaragedoorpros.com"],[data-site="weatherfordgaragedoorpros.com"],[data-site="westbendgaragedoorpros.com"],[data-site="texascitygaragedoorpros.com"],[data-site="springfieldgaragedoorco.com"],[data-site="sunprairiegaragedoorpros.com"],[data-site="vernonhillsgaragedoorpros.com"]) .quote-copy__call a:hover{filter:brightness(1.08);transform:translateY(-2px)}
 /* Miami only (user 2026-09-14): the ghost "All services" button sat on the dark
    hero photo as purple text on a near-transparent fill - it read as plain text. */
 [data-site="miamigaragedoorco.com"] .hero .btn--ghost{background:rgba(255,255,255,.14);color:#fff;border:2px solid rgba(255,255,255,.85);box-shadow:0 6px 18px -10px rgba(0,0,0,.6);backdrop-filter:blur(4px);text-shadow:none}
@@ -871,7 +884,7 @@ main{flex:1;overflow-x:clip}
   background:var(--grad-brand-text);-webkit-background-clip:text;background-clip:text;color:transparent}
 .section--dark .stat__n,.section--brand .stat__n{background:none;color:currentColor;-webkit-text-fill-color:currentColor}
 .stat__l{margin-top:.5rem;color:var(--c-muted);font-size:var(--fs-sm);font-weight:600}
-.section--dark .stat__l,.section--brand .stat__l{color:color-mix(in srgb,currentColor 78%,transparent)}
+.section--dark .stat__l,.section--brand .stat__l{color:inherit}
 .stats--cards .stat:hover{box-shadow:var(--shadow-md);border-color:color-mix(in srgb,var(--c-primary) 30%,var(--c-border))}
 /* Asymmetric: one lead number carries the visual weight, the rest sit as
    small cells beside it - reads as "the number that matters" rather than
@@ -889,7 +902,7 @@ main{flex:1;overflow-x:clip}
 .ssp-lead .stat-ic,.ssp-cell .stat-ic{margin-bottom:0}
 .ssp-lead .stat-ic{width:2.7rem;height:2.7rem;margin-bottom:.5rem}
 .ssp-cell .stat-ic{width:1.9rem;height:1.9rem}
-@media (max-width:640px){.stats-spotlight{grid-template-columns:1fr}
+@media (max-width:640px){.stats-spotlight{grid-template-columns:minmax(0,1fr)}
   .ssp-lead{border-right:0;border-bottom:1px solid var(--c-border);padding-right:0;padding-bottom:1.2rem}}
 /* Unboxed, edge-to-edge divided row - sits directly on the page background
    (no card, no gradient) so it reads as a thin data rail, not another block. */
@@ -904,28 +917,35 @@ main{flex:1;overflow-x:clip}
 @media (max-width:640px){.st-cell{flex:1 1 45%;border-left:0;border-top:1px solid var(--c-border)}}
 
 /* stats - RING: number inside a circular outline badge */
-.stats-ring{display:flex;flex-wrap:wrap;justify-content:center;gap:clamp(1.4rem,4vw,3rem)}
-.sr-cell{display:flex;flex-direction:column;align-items:center;gap:.6rem}
-.sr-cell .stat-ic{margin-bottom:0}
-/* EVERY RING IS THE SAME CIRCLE. The row is a set of matched rings, so the
-   size must not depend on the value inside it - an earlier fix let a long
-   value widen into a pill and the row stopped looking uniform.
-   The ring has to hold a SIX-CHARACTER value, not just "4" or "29": this stat
-   is the city population and populations carry a thousands separator, so
-   "60,438" is the normal case, not the exception. At the old 88px/22.4px that
-   value measured 84px of ink - 2px of clearance, digits sitting on the ring
-   (Petaluma, 2026-08-30).
-   So the circle is FIXED and identical, sized generously, and the number is
-   set a little smaller so the longest realistic value clears the ring. Every
-   circle keeps width === height and border-radius:50%. If a future stat needs
-   more than ~7 characters, shrink the font here - do NOT let the box grow. */
-.sr-circle{width:112px;height:112px;flex:0 0 auto;box-sizing:border-box;
-  border-radius:50%;border:3px solid color-mix(in srgb,var(--c-primary) 40%,transparent);
-  display:grid;place-items:center;font-family:var(--font-heading);font-weight:800;
-  font-size:clamp(.95rem,1.9vw,1.25rem);white-space:nowrap;
-  transition:border-color .18s ease,background .18s ease}
-.sr-cell:hover .sr-circle{border-color:var(--c-primary);background:color-mix(in srgb,var(--c-primary) 8%,transparent)}
-.sr-l{color:var(--c-muted);font-size:var(--fs-sm);font-weight:600;text-align:center;max-width:12ch}
+/* RING STATS - redesigned 2026-10-12 (user, Addison): four small thin rings
+   bunched in the middle of a wide band, icons floating above them as tiny
+   chips, muted 12ch labels. Now: four equal columns across the container
+   (2x2 on phones), each a filled disc with a brand-gradient ring, the icon
+   INSIDE the disc above a bigger number, and a full-colour label.
+   EVERY RING IS THE SAME CIRCLE (fixed size, never value-driven) and must
+   hold a six-character population like "60,438" - see the earlier Petaluma
+   note: shrink the number, never grow the box. */
+.stats-ring{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(1.4rem,3vw,2.6rem);align-items:start}
+.sr-cell{display:flex;flex-direction:column;align-items:center;gap:1rem;text-align:center}
+.sr-circle{position:relative;width:160px;height:160px;flex:0 0 auto;box-sizing:border-box;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.35rem;
+  background:radial-gradient(closest-side,var(--c-surface) calc(100% - 5px),transparent calc(100% - 4px)),
+    conic-gradient(from 200deg,var(--c-primary),var(--c-accent),var(--c-primary));
+  box-shadow:0 14px 34px -18px var(--shadow-tint),0 0 0 6px color-mix(in srgb,var(--c-primary) 10%,transparent);
+  transition:transform .18s ease,box-shadow .18s ease}
+.sr-cell:hover .sr-circle{box-shadow:0 18px 40px -16px var(--shadow-tint),0 0 0 8px color-mix(in srgb,var(--c-primary) 16%,transparent)}
+/* Icon = a real round chip inside the disc (not a bare glyph): the shared
+   stats hover rule (.sr-cell:hover .stat-ic, 0,3,0) fills the icon solid,
+   and on a width:auto bare glyph that fill showed up as a tiny misshapen
+   blob (user 2026-10-12). Sized chip + matching hover, no scale-up so it
+   never crowds the number. */
+.sr-circle .stat-ic{width:2.9rem;height:2.9rem;margin:0;border:0;box-shadow:none;padding:0;
+  background:color-mix(in srgb,var(--c-primary) 14%,transparent);color:var(--c-link)}
+.sr-cell:hover .sr-circle .stat-ic{background:var(--c-primary);color:var(--c-on-primary);transform:none}
+.sr-circle .stat-ic::before,.sr-circle .stat-ic::after{display:none}
+.sr-n{font-family:var(--font-heading);font-weight:800;font-size:clamp(1.25rem,2.1vw,1.6rem);line-height:1;color:var(--c-text);white-space:nowrap;letter-spacing:-.01em}
+.sr-l{color:var(--c-text);font-size:var(--fs-sm);font-weight:600;line-height:1.4;max-width:18ch}
+@media (max-width:820px){.stats-ring{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:2.2rem}}
 
 /* stats - COLUMNS: spec-sheet style, one label row (icon + label) + one value row */
 .stats-table{border:1px solid var(--c-border);border-radius:var(--radius-lg);overflow:hidden}
@@ -1154,7 +1174,7 @@ main{flex:1;overflow-x:clip}
   background-size:130% 130%;background-position:center}
 .cta-band .container{position:relative}
 .cta-band h2{color:var(--c-on-primary)}
-.cta-band p{color:color-mix(in srgb,var(--c-on-primary) 88%,transparent);max-width:52ch;margin-inline:auto}
+.cta-band p{color:var(--c-on-primary);max-width:52ch;margin-inline:auto}
 .cta-band .btn--primary{background:var(--c-on-primary);color:var(--c-primary)}
 /* The band's own background IS var(--grad-brand) (primary→accent) - the
    emergency button's normal solid red and the ghost button's normal
@@ -1264,13 +1284,33 @@ main{flex:1;overflow-x:clip}
    band, not a floating rounded card. */
 .cta-banner--bold-strip .cta-banner__inner{background:var(--c-surface);border-top:3px solid var(--c-primary);border-bottom:3px solid var(--c-primary);border-radius:0;padding:1.8rem 2.2rem}
 .cta-banner--bold-strip .cta-banner__text{font-family:var(--font-heading);font-size:var(--fs-lg)}
+/* CENTRED STACK (user 2026-10-12, Henderson). At --fs-lg the 56ch text is too
+   wide to share a row, so the buttons wrapped underneath, hard left, leaving
+   the right half of the strip empty. Stack and centre both instead. */
+.cta-banner--bold-strip .cta-banner__inner{flex-direction:column;justify-content:center;text-align:center;gap:1.2rem}
+.cta-banner--bold-strip .cta-banner__text{max-width:52ch;margin-inline:auto}
+.cta-banner--bold-strip .cta-banner__actions{justify-content:center}
 
 /* filled-brand: solid gradient fill with one corner cut at an angle (same
    clip-path technique as boxed-diagonal elsewhere) instead of a plain
    rounded rectangle - reuses the proven contrast-safe on-primary override
    for every button kind. */
-.cta-banner--filled-brand .cta-banner__inner{background:var(--grad-brand);border:0;border-radius:var(--radius-card);padding:2rem 2.4rem;clip-path:polygon(0 0,100% 0,100% 100%,32px 100%,0 calc(100% - 32px));box-shadow:0 14px 30px -16px var(--shadow-tint)}
-.cta-banner--filled-brand .cta-banner__text{color:var(--c-on-primary);font-family:var(--font-heading)}
+/* SPLIT BANNER (user 2026-10-12, Chandler): text and buttons both sat hard
+   left with half the gradient empty, and the clipped corner read as a
+   rendering glitch. Now: larger 2-line message left, buttons right on the
+   same row, vertically centred; a soft on-primary glow in the top-right
+   corner gives the panel depth. Stacks + centres below 1100px (at 1024 the
+   side-by-side text column was squeezed to 5 lines). */
+.cta-banner--filled-brand .cta-banner__inner{position:relative;overflow:hidden;flex-wrap:nowrap;justify-content:space-between;gap:1.6rem 3rem;
+  background:radial-gradient(circle at 100% 0,color-mix(in srgb,var(--c-on-primary) 10%,transparent) 0 30%,transparent 30.5%),var(--grad-brand);
+  border:0;border-radius:var(--radius-lg);padding:clamp(1.8rem,3.4vw,2.6rem) clamp(1.6rem,4vw,3.2rem);box-shadow:0 18px 40px -20px var(--shadow-tint)}
+.cta-banner--filled-brand .cta-banner__text{flex:1 1 auto;max-width:36ch;color:var(--c-on-primary);font-family:var(--font-heading);font-size:clamp(1.15rem,1rem + 1vw,1.65rem);line-height:1.3;text-wrap:balance}
+.cta-banner--filled-brand .cta-banner__actions{flex:none;justify-content:flex-end}
+@media (max-width:1100px){
+  .cta-banner--filled-brand .cta-banner__inner{flex-direction:column;flex-wrap:wrap;text-align:center}
+  .cta-banner--filled-brand .cta-banner__text{max-width:40ch;margin-inline:auto}
+  .cta-banner--filled-brand .cta-banner__actions{justify-content:center}
+}
 .cta-banner--filled-brand .btn--primary{background:var(--c-on-primary);color:var(--c-primary)}
 .cta-banner--filled-brand .btn--emergency,.cta-banner--filled-brand .btn--ghost{background:transparent;border-width:max(var(--border),2px);border-style:solid;border-color:var(--c-on-primary);color:var(--c-on-primary);box-shadow:none}
 .cta-banner--filled-brand .btn--emergency:hover,.cta-banner--filled-brand .btn--ghost:hover{background:var(--c-on-primary);color:var(--c-primary)}
@@ -1292,7 +1332,6 @@ main{flex:1;overflow-x:clip}
 .cta-band .btn--solid,.cta-banner--filled-brand .btn--solid{
   background:var(--c-on-primary)!important;color:var(--c-primary)!important;
   border-color:var(--c-on-primary)!important}
-@media (max-width:640px){.cta-banner--filled-brand .cta-banner__inner{clip-path:none}}
 
 /* icon-badge: the icon block is a SOLID full-height color tab flush with the
    card's own left edge (negative-margin bleed), not a small floating tinted
@@ -1443,7 +1482,11 @@ main{flex:1;overflow-x:clip}
 .prose-media__fig{margin:0;border-radius:var(--radius-lg);overflow:hidden;aspect-ratio:4/3;background:var(--c-surface-alt)}
 .prose-media__fig img,.prose-media__fig .ph{width:100%;height:100%;object-fit:cover;display:block}
 .prose-media__body h2{margin-top:0}
-@media (max-width:780px){.prose-media,.prose-media--rev{grid-template-columns:1fr}.prose-media--rev .prose-media__fig{order:0}}
+@media (max-width:780px){.prose-media,.prose-media--rev{grid-template-columns:minmax(0,1fr)}.prose-media--rev .prose-media__fig{order:0}}
+/* HOMEPAGE ABOUT (user 2026-10-12): on tablets the photo sat squeezed beside
+   a tall text column. Phones AND tablets: photo full width on top, then the
+   text - a wider 16:9 crop so it doesn't dominate the stacked layout. */
+@media (max-width:1024px){.home-about .prose-media,.home-about .prose-media--rev{grid-template-columns:minmax(0,1fr);gap:1.6rem}.home-about .prose-media__fig,.home-about .prose-media--rev .prose-media__fig{order:0;aspect-ratio:16/9}}
 
 /* Shared icon badge - EVERY content-section template gets one now (2026-08-24,
    explicit complaint: lede/accent's typography-only treatment still read as
@@ -1478,7 +1521,7 @@ main{flex:1;overflow-x:clip}
 .prose-combo__half p{color:var(--c-text);line-height:1.75;margin:0 0 1.2rem}
 .prose-combo__half p:last-child{margin-bottom:0}
 .prose-combo__div{width:1px;background:var(--c-border);align-self:stretch}
-@media (max-width:780px){.prose-combo{grid-template-columns:1fr}.prose-combo__div{width:100%;height:1px;margin-block:1.6rem}.prose-combo__half{padding:0}}
+@media (max-width:780px){.prose-combo{grid-template-columns:minmax(0,1fr)}.prose-combo__div{width:100%;height:1px;margin-block:1.6rem}.prose-combo__half{padding:0}}
 
 /* ---- area chips ---- */
 .area-grid{display:flex;flex-wrap:wrap;gap:.65rem}
@@ -1614,6 +1657,12 @@ main{flex:1;overflow-x:clip}
 .content-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:3rem;align-items:start}
 .content-main{min-width:0}
 .prose-block{margin-bottom:2.6rem;max-width:68ch}
+/* NEXT TO A SIDEBAR the main column is already a reading-width column
+   (~830px beside the 320px sidebar at desktop), so the 68ch cap left ~300px
+   of dead space between the text and the sidebar on every inner page with
+   one (user 2026-10-12, Addison /addison/murphy/). Fill the column there;
+   full-width pages (no sidebar) keep the 68ch measure. */
+.content-layout .content-main .prose-block,.content-layout .content-main .prose-block p{max-width:none}
 .prose-block:last-child{margin-bottom:0}
 .prose-block h2{margin-bottom:1.2rem;font-size:var(--fs-h3);position:relative;padding-left:1rem}
 .prose-block h2::before{content:"";position:absolute;left:0;top:.1em;bottom:.1em;width:4px;border-radius:4px;background:var(--grad-brand)}
@@ -1634,10 +1683,18 @@ main{flex:1;overflow-x:clip}
 .side-card h4{font-size:var(--fs-sm);text-transform:uppercase;letter-spacing:.08em;color:var(--c-muted);margin:0 0 .9rem}
 .side-card--cta{background:var(--grad-band);color:var(--c-on-primary);border:0}
 .side-card--cta h3{color:var(--c-on-primary);margin:0 0 .4rem}
-.side-card--cta p{color:color-mix(in srgb,var(--c-on-primary) 88%,transparent);font-size:var(--fs-sm);margin-bottom:1rem}
+.side-card--cta p{color:var(--c-on-primary);font-size:var(--fs-sm);margin-bottom:1rem}
 .side-card--cta .btn{background:var(--c-on-primary);color:var(--c-primary);width:100%}
-.side-card__phone{display:flex;align-items:center;justify-content:center;gap:.45rem;margin-top:.9rem;color:var(--c-on-primary);text-decoration:none;font-weight:700;font-size:var(--fs-sm)}
-.side-card__phone:hover{opacity:.85}
+/* both card buttons one height, whatever each skin's border width */
+.side-card--cta .btn--primary,.side-card--cta .btn.side-card__call{display:flex;align-items:center;justify-content:center;height:48px;box-sizing:border-box;padding-block:0}
+/* Phone is a real button (user 2026-10-12: "phone number as a plain text it
+   should be like a button") - outlined secondary under the solid quote button,
+   same width and height, so both read as actions. Specificity beats the
+   .side-card--cta .btn fill above. */
+.side-card--cta .btn.side-card__call{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:.7rem;
+  background:transparent;color:var(--c-on-primary);border:2px solid color-mix(in srgb,var(--c-on-primary) 80%,transparent);box-shadow:none}
+.side-card--cta .btn.side-card__call:hover,.side-card--cta .btn.side-card__call:focus-visible{background:color-mix(in srgb,var(--c-on-primary) 14%,transparent);color:var(--c-on-primary)}
+.side-card--cta .btn.side-card__call .ico{color:currentColor}
 .side-links{list-style:none;margin:0;padding:0;display:grid;gap:.55rem}
 .side-links a{display:inline-flex;align-items:center;gap:.45rem;color:var(--c-text);text-decoration:none;font-weight:600;font-size:var(--fs-sm)}
 .side-links a:hover{color:var(--c-primary)}
@@ -1650,14 +1707,14 @@ main{flex:1;overflow-x:clip}
 .side-areas .ico{color:var(--c-primary);flex:0 0 auto}
 .side-areas__more{display:inline-flex;align-items:center;gap:.35rem;margin-top:.9rem;font-size:var(--fs-xs);font-weight:700;color:var(--c-link);text-decoration:none}
 .side-areas__more:hover{color:var(--c-primary)}
-@media (max-width:600px){.side-areas{grid-template-columns:1fr}}
-@media (max-width:960px){.content-layout{grid-template-columns:1fr;gap:2rem}.sidebar{position:static;grid-template-columns:1fr 1fr;display:grid}}
+@media (max-width:600px){.side-areas{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:960px){.content-layout{grid-template-columns:minmax(0,1fr);gap:2rem}.sidebar{position:static;grid-template-columns:1fr 1fr;display:grid}}
 @media (max-width:780px){
   /* side-label is display:block at every width now, so its old
      grid-template-columns / sticky-label overrides here are dead. */
   .prose__columns{columns:1}
 }
-@media (max-width:600px){.sidebar{grid-template-columns:1fr}}
+@media (max-width:600px){.sidebar{grid-template-columns:minmax(0,1fr)}}
 
 /* ---- footer ---- */
 .site-footer{background:var(--c-secondary);color:var(--c-on-secondary);margin-top:auto}
@@ -1731,12 +1788,16 @@ main{flex:1;overflow-x:clip}
 .sfoot a:hover,.sfoot a:focus-visible{color:var(--sf-text)}
 .sfoot__grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:2.4rem 3rem;padding-block:3.4rem 2.6rem;align-items:start}
 .sfoot .sfoot__logo{display:inline-flex;align-items:center;gap:.6rem;color:var(--sf-text)}
-.sfoot__logo .brand__mark--logo{height:56px;width:auto;max-width:180px}
+.sfoot__logo .brand__mark--logo{height:52px;width:auto;max-width:140px;flex:none}
+.sfoot .sfoot__logo>span{font-family:var(--font-heading);font-weight:800;font-size:1.15rem;line-height:1.2;color:var(--sf-text)}
 .sfoot__desc{margin:1.3rem 0 0;line-height:1.75;max-width:36ch}
 .sfoot__addr{font-style:normal;margin-top:1.1rem;line-height:1.75}
 .sfoot .sfoot__phone{display:inline-block;margin-top:.5rem;font-weight:700;color:var(--sf-text)}
 .sfoot h4{margin:0 0 1.3rem;font-family:var(--font-body);font-size:.78rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--sf-text);opacity:1}
-.sfoot ul{list-style:none;margin:0;padding:0;display:grid;gap:.95rem}
+.sfoot ul{list-style:none;margin:0;padding:0;display:grid;gap:.25rem}
+/* every footer link is a 24px+ tap target at every width (short ones like
+   "FAQ" were 17px tall on desktop); the list gap shrinks to keep the rhythm */
+.sfoot__col a,.sfoot__legal a,.sfoot__contact a,.sfoot .sfoot__phone{display:inline-block;padding-block:.35rem}
 .sfoot__col a{font-size:.88rem}
 .sfoot .sfoot__badges{display:flex;flex-wrap:wrap;gap:1rem 2.4rem;padding-block:1.5rem;border-top:1px solid var(--sf-line);border-bottom:1px solid var(--sf-line)}
 .sfoot__badges li{display:flex;align-items:center;gap:.6rem;color:var(--sf-text);font-size:.85rem;font-weight:500}
@@ -1750,17 +1811,14 @@ main{flex:1;overflow-x:clip}
 }
 @media (max-width:600px){
   .sfoot__grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:2rem 1.5rem;padding-block:2.6rem 2rem}
-  .sfoot .sfoot__badges{display:grid;grid-template-columns:1fr;gap:.85rem}
+  .sfoot .sfoot__badges{display:grid;grid-template-columns:minmax(0,1fr);gap:.85rem}
   .sfoot__bar{flex-direction:column;align-items:flex-start}
-  /* 24px+ tap targets on touch: pad the links, tighten the list gap so the
-     visual rhythm stays the same */
-  .sfoot ul{gap:.35rem}
-  .sfoot__col a,.sfoot__legal a,.sfoot__contact a,.sfoot .sfoot__phone{display:inline-block;padding-block:.35rem}
 }
 
 /* ---- breadcrumbs ---- */
-.crumbs{font-size:var(--fs-sm);color:var(--c-muted);padding-block:1.2rem}
-.crumbs a{color:var(--c-muted);text-decoration:none}
+.crumbs{font-size:var(--fs-sm);color:var(--c-muted);padding-block:.9rem}
+/* 24px+ tap target (was 17px tall); block padding trimmed so the bar keeps its height */
+.crumbs a{color:var(--c-muted);text-decoration:none;display:inline-block;padding-block:.35rem}
 .crumbs a:hover{color:var(--c-primary)}
 
 /* ---- icons ---- */
@@ -1780,7 +1838,10 @@ main{flex:1;overflow-x:clip}
 .mobile-cta{position:fixed;left:0;right:0;bottom:0;z-index:120;display:none;gap:.6rem;padding:.7rem;
   padding-bottom:calc(.7rem + env(safe-area-inset-bottom,0px));
   background:color-mix(in srgb,var(--c-bg) 94%,transparent);border-top:1px solid var(--c-border);backdrop-filter:blur(10px);box-shadow:0 -8px 24px -12px var(--shadow-tint)}
-.mobile-cta .btn{flex:1}
+.mobile-cta .btn{flex:1;min-width:0}
+/* 320-360px phones: the two buttons' natural widths (~188 + 105px + gap)
+   overran a 305px bar and clipped "Call" (2026-10-12 responsive sweep). */
+@media (max-width:360px){.mobile-cta{gap:.45rem;padding-inline:.5rem}.mobile-cta .btn{padding-inline:.55rem;font-size:.85rem;gap:.35rem}}
 .mobile-cta .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem}
 .mobile-cta .btn .ico{flex:0 0 auto;width:18px;height:18px;stroke:currentColor}
 /* No ctaStyle skin class on this bar (see mobileCta() comment) - always
@@ -1922,7 +1983,7 @@ main{flex:1;overflow-x:clip}
 .style-compare__row{padding-block:1.2rem;border-top:1px solid var(--c-border)}
 .style-compare__row:first-child{border-top:0;padding-top:0}
 .style-compare__row h3{margin:0 0 .3rem;font-size:var(--fs-md)}
-.style-compare__material{color:var(--c-primary);font-weight:700;font-size:var(--fs-sm);margin:0 0 .5rem}
+.style-compare__material{color:var(--c-link);font-weight:700;font-size:var(--fs-sm);margin:0 0 .5rem}
 .style-compare__row p:not(.style-compare__material){color:var(--c-muted);margin:0;max-width:70ch}
 
 /* ---- resources / blog cards ---- */
@@ -1931,7 +1992,13 @@ main{flex:1;overflow-x:clip}
 .post-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-xl)}
 .post-card__media{aspect-ratio:16/9;background:var(--c-surface-alt);overflow:hidden}
 .post-card__media .media-fill,.post-card__media .ph{width:100%;height:100%}
-.post-card__body{padding:1.3rem 1.4rem 1.5rem}
+/* EQUAL CARDS, ALIGNED LINK (user 2026-10-12, Chandler homepage blog): the
+   card already stretches to the row height, but its body did not, so
+   "Learn more" floated at a different height on every card. Body fills the
+   card and the link is pushed to its bottom edge. */
+.post-card{height:100%}
+.post-card__body{padding:1.3rem 1.4rem 1.5rem;flex:1 1 auto;display:flex;flex-direction:column}
+.post-card__more{margin-top:auto;padding-top:.2rem}
 .post-card__body h3{font-size:var(--fs-md);margin:0 0 .5rem}
 .post-card__body p{color:var(--c-muted);font-size:var(--fs-sm);margin:0 0 .9rem}
 .post-card__more{font-weight:700;color:var(--c-link);font-size:var(--fs-sm)}
@@ -1942,8 +2009,25 @@ main{flex:1;overflow-x:clip}
    photo should ever go. */
 .post-featured .post-card__media{width:44%;aspect-ratio:auto;max-height:420px}
 .post-featured .post-card__body{flex:1;display:flex;flex-direction:column;justify-content:center;padding:1.8rem 2rem}
+.post-featured .post-card__more{margin-top:0}
 .post-featured .post-card__body h3{font-size:var(--fs-lg)}
 @media (max-width:720px){.post-featured .post-card--featured{flex-direction:column}.post-featured .post-card__media{width:100%;aspect-ratio:16/9}}
+
+/* homepage latest-posts section (homeBlog in components/index.js): 3 cards,
+   4 on full-width sites, fewer when a site has fewer posts. Desktop-only
+   column counts - the 1000px/720px .post-grid rules below take over on
+   smaller screens. */
+@media (min-width:1001px){
+  .post-grid--n4{grid-template-columns:repeat(4,1fr)}
+  .post-grid--n2{grid-template-columns:repeat(2,1fr)}
+  .post-grid--n1{grid-template-columns:minmax(0,560px);justify-content:center}
+}
+.home-blog__all{display:flex;justify-content:center;margin-top:2rem}
+/* 3 cards: stay 3-across on tablets - the shared 1000px rule would make it
+   2 + 1 with the third card stranded on its own row. */
+@media (min-width:721px) and (max-width:1000px){.post-grid.post-grid--n3{grid-template-columns:repeat(3,1fr)}}
+
+}
 .media-fill{width:100%;height:100%;object-fit:cover;display:block}
 
 /* ---- review badge cards + contact + cta band buttons ---- */
@@ -1964,7 +2048,7 @@ main{flex:1;overflow-x:clip}
 .map-embed{position:relative;border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-md);background:var(--c-surface-alt);min-height:380px}
 .map-embed iframe{width:100%;height:100%;min-height:380px;border:0;display:block}
 .map-embed__link{position:absolute;right:.7rem;bottom:.7rem;background:var(--c-surface);color:var(--c-link);font-weight:700;font-size:var(--fs-xs);padding:.4rem .8rem;border-radius:var(--radius-pill);text-decoration:none;box-shadow:var(--shadow-sm)}
-@media (max-width:900px){.contact-grid{grid-template-columns:1fr}}
+@media (max-width:900px){.contact-grid{grid-template-columns:minmax(0,1fr)}}
 .cta-band__btns{display:flex;gap:.9rem;justify-content:center;flex-wrap:wrap;margin-top:1.6rem}
 /* layered-depth buttons cast a 10px offset shadow right/down: widen the gap so it never sits on the next button. */
 .cta-band__btns.cta-layered-depth-btn,.cta-banner__actions.cta-layered-depth-btn{column-gap:calc(.9rem + 12px);row-gap:calc(.9rem + 12px)}
@@ -1999,6 +2083,8 @@ main{flex:1;overflow-x:clip}
    the slot always occupies its space. The resizer sets an explicit height
    above this once the form renders, so it only ever acts as a minimum. */
 .ghl-embed{min-height:var(--ghl-h,980px)}
+/* Floor released once form_embed.js has sized the iframe (see fit() in quoteEmbed) - otherwise the 1336px placeholder left a white tail under the shorter real form. */
+.ghl-embed.is-sized{min-height:0}
 .ghl-embed__skeleton{display:none}
 /* The skeleton COVERS the iframe (z-index) rather than the iframe being faded
    in underneath it. The iframe's own opacity is never touched.
@@ -2044,8 +2130,11 @@ main{flex:1;overflow-x:clip}
 .quote-points li::before{content:"";position:absolute;left:0;top:.18em;width:1.2rem;height:1.2rem;background:var(--grad-brand);
   -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M9 16.2l-3.5-3.5-1.4 1.4L9 19 20 8l-1.4-1.4z'/></svg>") center/contain no-repeat;
   mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M9 16.2l-3.5-3.5-1.4 1.4L9 19 20 8l-1.4-1.4z'/></svg>") center/contain no-repeat}
-.quote-copy__call{margin-top:1.4rem;color:var(--c-muted)}
-@media (max-width:820px){.quote-layout{grid-template-columns:1fr}.quote-copy{position:static}}
+.quote-copy__call{margin-top:1.4rem;color:var(--c-muted);display:flex;align-items:center;flex-wrap:wrap;gap:.6rem 1rem}
+/* "Prefer to talk?" call button - the site's own primary button skin */
+.quote-copy__call .quote-call-btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:48px}
+.quote-copy__call .quote-call-btn .ico{color:currentColor}
+@media (max-width:820px){.quote-layout{grid-template-columns:minmax(0,1fr)}.quote-copy{position:static}}
 
 /* ============ SECTION-LAYOUT VARIANTS (per-site structural variety) ============ */
 /* Each major band ships several genuinely different skeletons; the variation
@@ -2057,7 +2146,7 @@ main{flex:1;overflow-x:clip}
 .svc-list-intro{position:sticky;top:96px}
 .svc-rows{display:flex;flex-direction:column;gap:.6rem}
 .svc-rows--full{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem}
-@media (max-width:760px){.svc-rows--full{grid-template-columns:1fr}}
+@media (max-width:760px){.svc-rows--full{grid-template-columns:minmax(0,1fr)}}
 .svc-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:1rem;padding:1.05rem 1.2rem;background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--radius-card);text-decoration:none;color:inherit;transition:border-color .15s,transform .15s,box-shadow .15s}
 .svc-row:hover{border-color:var(--c-primary);transform:translateX(4px);box-shadow:var(--shadow-md)}
 .svc-row__n{font-family:var(--font-heading);font-weight:800;color:var(--c-link);font-size:1.25rem}
@@ -2158,7 +2247,7 @@ main{flex:1;overflow-x:clip}
    auto-fit - at this container width that resolves to 3 columns and puts the
    fourth item alone on a row of its own, which is the same defect again. */
 .why-iband{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.9rem}
-@media (max-width:720px){.why-iband{grid-template-columns:1fr}}
+@media (max-width:720px){.why-iband{grid-template-columns:minmax(0,1fr)}}
 .why-iband__item{display:flex;gap:.7rem;align-items:center;background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--radius-pill);padding:.7rem 1.3rem .7rem .8rem;box-shadow:var(--shadow-sm)}
 .why-iband__ic{flex:0 0 auto;width:32px;height:32px;border-radius:50%;background:color-mix(in srgb,var(--c-primary) 13%,transparent);color:var(--c-primary);display:grid;place-items:center}
 .why-iband__item b{display:block;font-size:var(--fs-sm)}
@@ -2320,23 +2409,23 @@ main{flex:1;overflow-x:clip}
 .hero__stats--divided .hstat{padding-inline:1.5rem;border-left:1px solid color-mix(in srgb,currentColor 24%,transparent);flex:none}
 .hero__stats--divided .hstat:first-child{padding-left:0;border-left:0}
 .hero__stats--divided .hstat b{font-size:clamp(1.6rem,3.6vw,2.3rem)}
-@media (max-width:520px){.hero__stats--divided{flex-wrap:wrap;overflow-x:visible}
+@media (max-width:900px){.hero__stats--divided{flex-wrap:wrap;overflow-x:visible;row-gap:1rem}
   .hero__stats--divided .hstat{border-left:0;padding-left:0;padding-right:1.2rem}}
 
 /* new-layout responsive collapses */
 @media (max-width:900px){
-  .svc-listing{grid-template-columns:1fr}
+  .svc-listing{grid-template-columns:minmax(0,1fr)}
   .svc-list-intro{position:static}
-  .svc-zz,.svc-zz--rev .svc-zz__media{grid-template-columns:1fr}
+  .svc-zz,.svc-zz--rev .svc-zz__media{grid-template-columns:minmax(0,1fr)}
   .svc-zz--rev .svc-zz__media{order:0}
   .svc-bento{grid-template-columns:repeat(2,1fr)}
   .bento-cell--lg{grid-column:span 2;grid-row:auto}
   .why-flow{grid-template-columns:repeat(2,1fr)}
   .hflow{grid-template-columns:repeat(2,1fr)}
   .hstep:not(:last-child)::after{display:none}
-  .svc-hcards{grid-template-columns:1fr}
+  .svc-hcards{grid-template-columns:minmax(0,1fr)}
   .svc-numlist{columns:1}
-  .why-checklist{grid-template-columns:1fr}
+  .why-checklist{grid-template-columns:minmax(0,1fr)}
   .proc-track__items{grid-template-columns:repeat(2,1fr);gap:1.6rem 1.2rem}
   .proc-track__line{display:none}
   .stc-row{grid-template-columns:repeat(2,1fr)}
@@ -2344,24 +2433,26 @@ main{flex:1;overflow-x:clip}
   .stc-cell:nth-child(3){border-left:0}
 }
 @media (max-width:560px){
-  .svc-bento,.why-flow,.hflow{grid-template-columns:1fr}
+  .svc-bento,.why-flow,.hflow{grid-template-columns:minmax(0,1fr)}
   .bento-cell--lg{grid-column:auto}
   .svc-row{grid-template-columns:auto 1fr auto}
-  .proc-track__items{grid-template-columns:1fr}
-  .stc-row{grid-template-columns:1fr}
+  .proc-track__items{grid-template-columns:minmax(0,1fr)}
+  .stc-row{grid-template-columns:minmax(0,1fr)}
   .stc-cell{border-left:0!important;border-top:1px solid var(--c-border)}
   .stc-row--labels .stc-cell:first-child,.stc-row--values .stc-cell:first-child{border-top:0}
-  .sr-circle{width:88px;height:88px;font-size:1rem}
+  .sr-circle{width:124px;height:124px;gap:.25rem}
+  .sr-circle .stat-ic{width:2.35rem;height:2.35rem}
+  .sr-n{font-size:1.2rem}
 }
 
 /* ---- responsive ---- */
 @media (max-width:1000px){
   .product-grid,.post-grid{grid-template-columns:repeat(2,1fr)}
-  .finance{grid-template-columns:1fr}
+  .finance{grid-template-columns:minmax(0,1fr)}
   .finance__cta{justify-content:flex-start}
   .cols-4,.gallery--wide-strip{grid-template-columns:repeat(2,1fr)}
   .cols-3,.svc-grid,.gallery--grid-3,.gallery--masonry,.gallery--asymmetric,.gallery--polaroid{grid-template-columns:repeat(2,1fr)}
-  .quote{grid-template-columns:1fr}
+  .quote{grid-template-columns:minmax(0,1fr)}
   /* Was "grid-template-columns:1fr 1fr" here - a complete no-op, since
      .footer-grid is display:flex (see the base rule's own comment for why),
      never display:grid. That silently meant the footer NEVER actually
@@ -2396,7 +2487,7 @@ main{flex:1;overflow-x:clip}
   .mega{position:static;min-width:0;box-shadow:none;border:0;padding:.15rem 0 .5rem .6rem;transform:none;background:transparent;opacity:1;visibility:visible;display:none}
   .nav__links .has-menu.open>.mega{display:block}
   .mega--wide{min-width:0}
-  .mega__grid,.mega__grid--3{grid-template-columns:1fr}
+  .mega__grid,.mega__grid--3{grid-template-columns:minmax(0,1fr)}
   .mega__all{padding-left:.7rem}
   /* Call button moves INTO the hamburger menu, with the number. */
   .nav__mcall{display:block;margin-top:.5rem;padding-top:.6rem;border-top:1px solid var(--c-border)}
@@ -2411,7 +2502,10 @@ main{flex:1;overflow-x:clip}
      primary-tinted background that's nearly invisible against the white
      mobile-menu panel behind it. */
   .nav__links .nav__mcall a:hover{background:color-mix(in srgb,var(--c-emergency) 85%,#000 15%);color:var(--c-on-emergency)}
-  .hero__grid,.hero--color-block-split .hero__grid,.quote,.coverage,.process-split,.faq-split,.why-split,.cta-split{grid-template-columns:1fr!important}
+  /* minmax(0,1fr), not 1fr: a bare 1fr track is at least its content's
+     min-content width, so one long FAQ row made Fort Mill's /faq/ 384px wide
+     at 375px and clipped the right edge (2026-10-12 responsive sweep). */
+  .hero__grid,.hero--color-block-split .hero__grid,.quote,.coverage,.process-split,.faq-split,.why-split,.cta-split{grid-template-columns:minmax(0,1fr)!important}
   /* Stacked, the map sits ABOVE the list rather than beside it, so sticking it
      would pin it over the content it is meant to accompany. */
   .coverage__map{position:static}
@@ -2432,14 +2526,14 @@ main{flex:1;overflow-x:clip}
   .cta-split__copy .cta-band__btns,.cta-bar{justify-content:center}
   .cta-bar{flex-direction:column;text-align:center}
   .faq--two-col-grid,.faq-split--split-duotone .faq{columns:1}
-  .faq-cards{grid-template-columns:1fr}
+  .faq-cards{grid-template-columns:minmax(0,1fr)}
 }
 @media (max-width:720px){
   .announce{display:none}
   .cov-list{columns:1}
   .brand{font-size:1rem}
-  .product-grid,.steps,.post-grid{grid-template-columns:1fr}
-  .cols-2,.cols-3,.cols-4,.svc-grid,.gallery,.gallery--grid-3,.gallery--grid-2,.gallery--masonry,.gallery--asymmetric,.gallery--wide-strip,.gallery--polaroid{grid-template-columns:1fr}
+  .product-grid,.steps,.post-grid{grid-template-columns:minmax(0,1fr)}
+  .cols-2,.cols-3,.cols-4,.svc-grid,.gallery,.gallery--grid-3,.gallery--grid-2,.gallery--masonry,.gallery--asymmetric,.gallery--wide-strip,.gallery--polaroid{grid-template-columns:minmax(0,1fr)}
 }
 
 /* ============ GENERATED SKIN VARIANTS (Workflow, 2026-08-20) ============ */
@@ -2652,7 +2746,7 @@ main{flex:1;overflow-x:clip}
 /* process - SHADOW-STACK: layered offset box-shadows suggest a stacked deck of cards */
 .proc-generic--shadow-stack{display:grid;grid-template-columns:repeat(4,1fr);gap:1.7rem}
 .proc-generic--shadow-stack .proc-g__item{position:relative;display:flex;flex-direction:column;gap:.75rem;background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--radius-card);padding:1.6rem 1.4rem;box-shadow:6px 6px 0 -1px color-mix(in srgb,var(--c-primary) 9%,var(--c-surface)),12px 12px 0 -2px color-mix(in srgb,var(--c-primary) 6%,var(--c-surface)),var(--shadow-md)}
-.proc-generic--shadow-stack .proc-g__n{font-family:var(--font-heading);font-weight:800;font-size:var(--fs-lg);color:color-mix(in srgb,var(--c-primary) 50%,transparent)}
+.proc-generic--shadow-stack .proc-g__n{font-family:var(--font-heading);font-weight:800;font-size:var(--fs-lg);color:color-mix(in srgb,var(--c-primary) 78%,transparent)}
 .proc-generic--shadow-stack .proc-g__ic{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--c-primary) 13%,transparent);color:var(--c-primary)}
 .proc-generic--shadow-stack .proc-g__item h3{margin:.2rem 0 .3rem;font-size:var(--fs-md)}
 .proc-generic--shadow-stack .proc-g__item p{margin:0;color:var(--c-muted);font-size:var(--fs-sm)}
@@ -2777,7 +2871,7 @@ main{flex:1;overflow-x:clip}
    REACH_MARKER (components/index.js), so any rule here that targets
    .reach-step__n or .reach-step__ic only applies on the keys that render it. */
 /* timeline-rail: full width, steps on a connected vertical rail */
-.reach-layout--timeline-rail{grid-template-columns:1fr;gap:1.6rem}
+.reach-layout--timeline-rail{grid-template-columns:minmax(0,1fr);gap:1.6rem}
 .reach-layout--timeline-rail .reach-steps{position:relative;padding-left:1.15rem;gap:1.1rem}
 .reach-layout--timeline-rail .reach-steps::before{content:"";position:absolute;left:.35rem;top:.6rem;bottom:.6rem;
   width:2px;background:color-mix(in srgb,var(--c-primary) 30%,transparent)}
@@ -2785,17 +2879,17 @@ main{flex:1;overflow-x:clip}
 .reach-layout--timeline-rail .reach-step:hover{box-shadow:none;background:transparent}
 .reach-layout--timeline-rail .reach-step__n{outline:4px solid var(--c-bg)}
 /* numbered-grid: copy on top, steps as a 2x2 card grid */
-.reach-layout--numbered-grid{grid-template-columns:1fr;gap:1.5rem}
+.reach-layout--numbered-grid{grid-template-columns:minmax(0,1fr);gap:1.5rem}
 .reach-layout--numbered-grid .reach-steps{display:grid;grid-template-columns:repeat(2,1fr);gap:.9rem}
 /* horizontal-track: copy on top, four steps across a single row */
-.reach-layout--horizontal-track{grid-template-columns:1fr;gap:1.6rem}
+.reach-layout--horizontal-track{grid-template-columns:minmax(0,1fr);gap:1.6rem}
 .reach-layout--horizontal-track .reach-copy{max-width:64ch}
 .reach-layout--horizontal-track .reach-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:.9rem}
 .reach-layout--horizontal-track .reach-step{grid-template-columns:auto 1fr;grid-template-rows:auto auto;
   align-content:start;row-gap:.7rem}
 .reach-layout--horizontal-track .reach-step__c{grid-column:1 / -1}
 /* stacked-panels: full-width rows, tinted, no border - reads as bands */
-.reach-layout--stacked-panels{grid-template-columns:1fr;gap:1.4rem}
+.reach-layout--stacked-panels{grid-template-columns:minmax(0,1fr);gap:1.4rem}
 .reach-layout--stacked-panels .reach-step{background:var(--c-surface-alt);border:0;box-shadow:none;
   border-radius:var(--radius-lg);padding:1.2rem 1.4rem}
 .reach-layout--stacked-panels .reach-step:hover{background:color-mix(in srgb,var(--c-primary) 8%,var(--c-surface-alt));box-shadow:none}
@@ -2817,15 +2911,15 @@ main{flex:1;overflow-x:clip}
    negative margin so the two overlapped into a single badge; with only the
    icon rendering, that negative margin had nothing to overlap and just
    dragged the badge out of place, so it is gone. */
-.reach-layout--circle-badge{grid-template-columns:1fr;gap:1.5rem}
+.reach-layout--circle-badge{grid-template-columns:minmax(0,1fr);gap:1.5rem}
 .reach-layout--circle-badge .reach-copy{text-align:center;margin-inline:auto;max-width:60ch}
 .reach-layout--circle-badge .reach-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:1.1rem}
-.reach-layout--circle-badge .reach-step{grid-template-columns:1fr;justify-items:center;text-align:center;
+.reach-layout--circle-badge .reach-step{grid-template-columns:minmax(0,1fr);justify-items:center;text-align:center;
   background:transparent;border:0;box-shadow:none;padding:.4rem}
 .reach-layout--circle-badge .reach-step:hover{background:transparent;box-shadow:none}
 .reach-layout--circle-badge .reach-step__ic{width:56px;height:56px;border-radius:50%}
 @media (max-width:820px){
-  .reach-layout{grid-template-columns:1fr}
+  .reach-layout{grid-template-columns:minmax(0,1fr)}
   .reach-layout--horizontal-track .reach-steps,
   .reach-layout--circle-badge .reach-steps{grid-template-columns:repeat(2,1fr)}
 }
@@ -2835,7 +2929,7 @@ main{flex:1;overflow-x:clip}
      silent per-width divergence that made the section look unfinished. */
   .reach-layout--numbered-grid .reach-steps,
   .reach-layout--horizontal-track .reach-steps,
-  .reach-layout--circle-badge .reach-steps{grid-template-columns:1fr}
+  .reach-layout--circle-badge .reach-steps{grid-template-columns:minmax(0,1fr)}
   .reach-step{padding:.9rem 1rem}
 }
 
@@ -2907,13 +3001,13 @@ main{flex:1;overflow-x:clip}
 @media (max-width:900px){
   /* Back to one column - two columns of [number + 104px photo + text] cannot
      hold their line length below this. */
-  .proc-numlist{grid-template-columns:1fr;gap:1.4rem}
+  .proc-numlist{grid-template-columns:minmax(0,1fr);gap:1.4rem}
 }
 @media (max-width:1000px){
   /* quiet-editorial collapses EARLIER than numbered-list: its media is a
      132px PORTRAIT crop, so each cell loses more width to the image and the
      copy beside it runs out of line length sooner. */
-  .proc-generic--quiet-editorial{grid-template-columns:1fr;gap:1.6rem}
+  .proc-generic--quiet-editorial{grid-template-columns:minmax(0,1fr);gap:1.6rem}
 }
 @media (max-width:760px){
   .proc-numlist__media{flex-basis:76px;width:76px}
@@ -3146,8 +3240,11 @@ main{flex:1;overflow-x:clip}
 .trustbar--circle-badge-grid .trust-item b{display:block}
 
 /* trustbar - QUIET EDITORIAL: text-forward, zero borders/boxes/shadows, generous editorial whitespace */
-.trustbar--quiet-editorial .container{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1.6rem 2.4rem;padding-block:2rem}
-.trustbar--quiet-editorial .trust-item{background:none;border:0;box-shadow:none;border-radius:0;padding:0;gap:.7rem;font-size:var(--fs-md)}
+/* ONE LINE PER ITEM (user 2026-10-12, Chandler): fixed 230px grid columns at
+   --fs-md wrapped "Diagnosis first, then the fix" onto two lines. Now a
+   centred flex row, items never wrap, and the type steps down slightly. */
+.trustbar--quiet-editorial .container{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:1.1rem clamp(1.6rem,4vw,3.6rem);padding-block:1.7rem}
+.trustbar--quiet-editorial .trust-item{background:none;border:0;box-shadow:none;border-radius:0;padding:0;gap:.6rem;font-size:clamp(.95rem,1.15vw,1.08rem);white-space:nowrap}
 .trustbar--quiet-editorial .trust-item .ico{color:var(--c-muted);flex:none}
 .trustbar--quiet-editorial .trust-item b{font-family:var(--font-heading)}
 
@@ -3349,7 +3446,7 @@ main{flex:1;overflow-x:clip}
    place, so each group now spans the FULL width and flows its own items into
    a responsive item grid. Both panels end up short, and neither can strand
    the other because they no longer share a row. */
-.cov-generic--glass-panel-grid .cov-generic__list{display:grid;grid-template-columns:1fr;gap:1.4rem;align-items:start}
+.cov-generic--glass-panel-grid .cov-generic__list{display:grid;grid-template-columns:minmax(0,1fr);gap:1.4rem;align-items:start}
 .cov-generic--glass-panel-grid .cov-group{background:color-mix(in srgb,var(--c-surface) 60%,transparent);backdrop-filter:blur(10px);border:1px solid var(--c-border);border-radius:var(--radius-lg);padding:1.6rem}
 .cov-generic--glass-panel-grid .cov-group h3{font-size:var(--fs-md);margin:0 0 1rem}
 /* Items flow as a grid rather than a CSS column flow: with columns:N the
@@ -3854,7 +3951,7 @@ main{flex:1;overflow-x:clip}
     color-mix(in srgb,var(--c-primary) 16%,var(--c-surface-alt)) 100%)}
 .cta-band--ghost-frame::before{content:none}
 .cta-band--ghost-frame h2{color:var(--c-text)}
-.cta-band--ghost-frame p{color:var(--c-muted)}
+.cta-band--ghost-frame p{color:color-mix(in srgb,var(--c-muted) 45%,var(--c-text))}
 .cta-band--ghost-frame .container{border:1px solid var(--c-border);border-radius:var(--radius-lg);
   padding:clamp(2.2rem,5vw,3.2rem) clamp(1.6rem,4vw,2.6rem);
   box-shadow:10px 10px 0 0 color-mix(in srgb,var(--c-border) 45%,transparent)}
@@ -4103,7 +4200,7 @@ main{flex:1;overflow-x:clip}
 
 /* MINIMAL-TEXT-ROW: text-only single line, icon dropped entirely,
    numbers and labels run inline separated by generous margin. */
-.hero__stats--minimal-text-row{background:transparent;border:none;padding:0;flex-wrap:nowrap;gap:0;align-items:baseline;overflow-x:auto}
+.hero__stats--minimal-text-row{background:transparent;border:none;padding:0;flex-wrap:wrap;gap:.6rem 0;align-items:baseline}
 .hero__stats--minimal-text-row .hstat{flex-direction:row;align-items:baseline;gap:.4rem;flex:none;margin-right:2.2rem}
 .hero__stats--minimal-text-row .hstat:last-child{margin-right:0}
 .hero__stats--minimal-text-row .hstat__ico{display:none}
@@ -4128,6 +4225,22 @@ main{flex:1;overflow-x:clip}
 .hero__stats--boxed-grid-table .hstat{padding:1rem 1.2rem;border-top:1px solid color-mix(in srgb,currentColor 20%,transparent);border-left:1px solid color-mix(in srgb,currentColor 20%,transparent)}
 .hero__stats--boxed-grid-table .hstat:nth-child(-n+2){border-top:none}
 .hero__stats--boxed-grid-table .hstat:nth-child(odd){border-left:none}
+/* VISIBLE + ALIGNED (user 2026-10-12, Georgetown): the panel was fully
+   transparent over a busy hero photo, labels at 78% opacity were hard to
+   read, and a wide 2x2 left each cell mostly empty. Now a tinted, blurred
+   glass panel on dark heroes (solid surface elsewhere), all stats in ONE row
+   on desktop (2x2 on tablets), centred cells, full-strength labels. */
+.hero__stats--boxed-grid-table{background:var(--c-surface);box-shadow:0 18px 40px -22px rgba(0,0,0,.55)}
+:is(.hero--fullbleed-dark,.hero--text-only-underline,.hero--diagnostic-panel) .hero__stats--boxed-grid-table{background:rgba(10,12,16,.62);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-color:rgba(255,255,255,.22)}
+@media (min-width:901px){
+  .hero__stats--boxed-grid-table{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}
+  .hero__stats--boxed-grid-table .hstat{border-top:none!important;border-left:1px solid color-mix(in srgb,currentColor 20%,transparent)!important}
+  .hero__stats--boxed-grid-table .hstat:first-child{border-left:none!important}
+}
+.hero__stats--boxed-grid-table .hstat{align-items:center;text-align:center;justify-content:center;padding:1.15rem 1rem;gap:.2rem}
+.hero__stats--boxed-grid-table .hstat__ico{margin:0 0 .35rem}
+.hero__stats--boxed-grid-table .hstat b{line-height:1.1}
+.hero__stats--boxed-grid-table .hstat span{opacity:1;color:inherit;font-weight:500;line-height:1.35}
 
 /* OVERSIZED-INDEX: a large translucent index numeral (CSS counter,
    01/02/03...) sits behind each item and dominates it; the real
@@ -4147,6 +4260,12 @@ main{flex:1;overflow-x:clip}
 /* The variant's own flat .6 layer (.hero--diagnostic-panel::before) stacked under the gradient above
    and buried the photo - Madison only uses the gradient. */
 .hero--diagnostic-panel:has(.hero__stats--oversized-index)::before{background:transparent}
+/* TALLER FULL-IMAGE HERO (user 2026-10-12, Georgetown 8903): the photo
+   hero sized only to its content - 509px on a 900px-tall desktop, so the
+   image read as a short banner. Now ~85% of the viewport (600-900px) with
+   the content vertically centred; phones get a smaller floor. */
+.hero--diagnostic-panel{min-height:clamp(600px,85svh,900px);display:flex;flex-direction:column;justify-content:center}
+@media (max-width:720px){.hero--diagnostic-panel{min-height:clamp(520px,78svh,720px)}}
 .hero:has(.hero__stats--oversized-index) .hero__bg{position:absolute}
 .hero:has(.hero__stats--oversized-index) :is(h1,.hero__sub,.hero__badge,.hstat b,.hstat span){text-shadow:0 2px 12px rgba(0,0,0,.55)}
 .hero__stats--oversized-index .hstat span{color:rgba(255,255,255,.88)}
@@ -4226,7 +4345,6 @@ main{flex:1;overflow-x:clip}
 .svc--ribbon-corner{position:relative;padding-top:2.1rem}
 .svc--ribbon-corner::after{content:"";position:absolute;top:0;right:0;width:0;height:0;
   border-style:solid;border-width:0 44px 44px 0;border-color:transparent var(--c-primary) transparent transparent}
-.svc--ribbon-corner .svc__icon{margin-bottom:1rem}
 
 /* duotone-icon: a single clean tint-filled circle. NO second layer behind it.
    The skin originally stacked an offset outlined shape behind the icon (first
@@ -4330,7 +4448,7 @@ main{flex:1;overflow-x:clip}
    existing collapse breakpoints (1000px -> 2 across, 720px -> 1) have to be
    restated at the bottom of this block as well - otherwise these later rules
    out-rank them and every site stays 3/4-across on a phone. */
-.svc-grid--cols-1{grid-template-columns:1fr}
+.svc-grid--cols-1{grid-template-columns:minmax(0,1fr)}
 .svc-grid--cols-2{grid-template-columns:repeat(2,1fr)}
 .svc-grid--cols-3{grid-template-columns:repeat(3,1fr)}
 .svc-grid--cols-4{grid-template-columns:repeat(4,1fr)}
@@ -4379,8 +4497,7 @@ main{flex:1;overflow-x:clip}
    soft-rounded, glass). Any skin that overrides padding stays inset, because
    a hardcoded -1.7rem would not line up with its edges. */
 /* photo runs edge-to-edge under the card's top corners, icon badge lifts onto it */
-.svc--icon-top .svc__media{margin:-1.7rem -1.7rem 0;width:auto;border-radius:0;aspect-ratio:16/9}
-.svc--icon-top .svc__icon{margin-top:-26px;position:relative;box-shadow:0 0 0 4px var(--c-surface);background:var(--c-surface)}
+.svc--icon-top .svc__media{margin:-1.7rem -1.7rem 1.15rem;width:auto;border-radius:0;aspect-ratio:16/9}
 /* Learn more pinned to the card foot so it aligns across a row (all-variant pass). */
 .svc--icon-top{display:flex;flex-direction:column;height:100%}
 .svc--icon-top .svc__more{margin-top:auto;padding-top:1.1rem;align-self:flex-start}
@@ -4500,7 +4617,7 @@ main{flex:1;overflow-x:clip}
   .svc-hcard__media{flex-basis:96px}
 }
 @media (max-width:720px){
-  .svc-grid--cols-2,.svc-grid--cols-3,.svc-grid--cols-4{grid-template-columns:1fr}
+  .svc-grid--cols-2,.svc-grid--cols-3,.svc-grid--cols-4{grid-template-columns:minmax(0,1fr)}
 }
 @media (max-width:560px){
   /* One line can't hold thumb + badge + copy + arrow at phone widths - the
@@ -4863,7 +4980,7 @@ main{flex:1;overflow-x:clip}
 @media (max-width:720px){
   .svc-generic--zigzag-offset .svc-g{width:100%}
   .svc-generic--zigzag-offset .svc-g:nth-child(even){margin-top:0}
-  .svc-generic--ledger-rows .svc-g__body{grid-template-columns:1fr}
+  .svc-generic--ledger-rows .svc-g__body{grid-template-columns:minmax(0,1fr)}
   .svc-generic--ledger-rows .svc-g__body span{grid-column:1;text-align:left;border-left:0;padding-left:0}
   .svc-generic--wide-spaced-grid{gap:calc(var(--grid-gap) * 1.1)}
 }
@@ -4875,7 +4992,7 @@ main{flex:1;overflow-x:clip}
 }
 
 @media (max-width:560px){
-  .svc-generic--framed-outline,.svc-generic--shadow-stack,.svc-generic--circle-badge-grid,.svc-generic--boxed-diagonal,.svc-generic--wide-spaced-grid,.svc-generic--glass-panel-grid{grid-template-columns:1fr}
+  .svc-generic--framed-outline,.svc-generic--shadow-stack,.svc-generic--circle-badge-grid,.svc-generic--boxed-diagonal,.svc-generic--wide-spaced-grid,.svc-generic--glass-panel-grid{grid-template-columns:minmax(0,1fr)}
   .svc-generic--framed-outline .svc-g{padding:1.5rem}
   .svc-generic--shadow-stack .svc-g{box-shadow:3px 3px 0 0 var(--c-surface-alt),6px 6px 0 0 var(--c-border),var(--shadow-sm)}
   .svc-generic--shadow-stack .svc-g:hover{transform:translate(-2px,-2px)}
@@ -4892,19 +5009,19 @@ main{flex:1;overflow-x:clip}
   .why-generic--wide-spaced-grid{gap:2.4rem 2rem}
 }
 @media (max-width:720px){
-  .why-generic--wide-spaced-grid{grid-template-columns:1fr;gap:1.8rem}
+  .why-generic--wide-spaced-grid{grid-template-columns:minmax(0,1fr);gap:1.8rem}
 }
 @media (max-width:640px){
-  .why-generic--framed-outline{grid-template-columns:1fr}
+  .why-generic--framed-outline{grid-template-columns:minmax(0,1fr)}
   .why-generic--framed-outline .why-g__item{padding:1.6rem 1.5rem}
-  .why-generic--shadow-stack{grid-template-columns:1fr;gap:2rem}
+  .why-generic--shadow-stack{grid-template-columns:minmax(0,1fr);gap:2rem}
   .why-generic--shadow-stack .why-g__item::before{transform:translate(5px,5px)}
   .why-generic--shadow-stack .why-g__item::after{transform:translate(10px,10px)}
-  .why-generic--circle-badge-grid{grid-template-columns:1fr;gap:2rem}
+  .why-generic--circle-badge-grid{grid-template-columns:minmax(0,1fr);gap:2rem}
   .why-generic--circle-badge-grid .why-g__ic{width:52px;height:52px}
-  .why-generic--boxed-diagonal{grid-template-columns:1fr}
-  .why-generic--glass-panel-grid{grid-template-columns:1fr}
-  .why-generic--split-duotone{grid-template-columns:1fr;row-gap:0}
+  .why-generic--boxed-diagonal{grid-template-columns:minmax(0,1fr)}
+  .why-generic--glass-panel-grid{grid-template-columns:minmax(0,1fr)}
+  .why-generic--split-duotone{grid-template-columns:minmax(0,1fr);row-gap:0}
   .why-generic--split-duotone .why-g__item:nth-child(odd){border-right:0;padding-right:0;border-bottom:1px solid var(--c-border);padding-bottom:1.4rem;margin-bottom:1.4rem}
   .why-generic--split-duotone .why-g__item:nth-child(even){padding-left:0}
   .why-generic--outline-only .why-g__item{flex:1 1 100%}
@@ -4920,7 +5037,7 @@ main{flex:1;overflow-x:clip}
   .proc-generic--wide-spaced-grid{gap:2rem 1.4rem}
 }
 @media (max-width:720px){
-  .proc-generic--framed-outline,.proc-generic--circle-badge-grid,.proc-generic--boxed-diagonal,.proc-generic--glass-panel-grid,.proc-generic--oversized-index,.proc-generic--shadow-stack,.proc-generic--alternating-tint,.proc-generic--wide-spaced-grid,.proc-generic--compact-dense{grid-template-columns:1fr}
+  .proc-generic--framed-outline,.proc-generic--circle-badge-grid,.proc-generic--boxed-diagonal,.proc-generic--glass-panel-grid,.proc-generic--oversized-index,.proc-generic--shadow-stack,.proc-generic--alternating-tint,.proc-generic--wide-spaced-grid,.proc-generic--compact-dense{grid-template-columns:minmax(0,1fr)}
   .proc-generic--framed-outline .proc-g__item{border-right:0}
   .proc-generic--framed-outline .proc-g__item:nth-child(n+3){border-bottom:1px solid color-mix(in srgb,var(--c-text) 22%,transparent)}
   .proc-generic--framed-outline .proc-g__item:last-child{border-bottom:0}
@@ -4935,7 +5052,7 @@ main{flex:1;overflow-x:clip}
 @media (max-width:560px){
   .proc-generic--framed-outline .proc-g__item{padding:1.5rem 1.3rem}
   .proc-generic--glass-panel-grid .proc-g__item{padding:1.3rem 1.1rem}
-  .proc-generic--quiet-editorial{gap:1.7rem;grid-template-columns:1fr}
+  .proc-generic--quiet-editorial{gap:1.7rem;grid-template-columns:minmax(0,1fr)}
   .proc-generic--boxed-diagonal .proc-g__item{padding:1.3rem 1.1rem}
   .proc-generic--oversized-index .proc-g__n{font-size:clamp(2rem,9vw,2.6rem)}
   .proc-generic--oversized-index .proc-g__item{column-gap:.8rem}
@@ -4956,7 +5073,7 @@ main{flex:1;overflow-x:clip}
 @media (max-width:640px){
   .stats-generic--framed-outline{grid-template-columns:repeat(2,1fr);gap:.9rem}
   .stats-generic--framed-outline .stats-g__cell{padding:1.4rem 1rem}
-  .stats-generic--shadow-stack{grid-template-columns:1fr;padding:.2rem .6rem .6rem .2rem}
+  .stats-generic--shadow-stack{grid-template-columns:minmax(0,1fr);padding:.2rem .6rem .6rem .2rem}
   .stats-generic--boxed-diagonal{grid-template-columns:repeat(2,1fr);gap:.9rem}
   .stats-generic--glass-panel-grid{grid-template-columns:repeat(2,1fr)}
   .stats-generic--ledger-rows .stats-g__cell{padding:.8rem 0}
@@ -4964,13 +5081,13 @@ main{flex:1;overflow-x:clip}
   .stats-generic--underline-accent-list .stats-g__cell{padding:.7rem .1rem .9rem}
 }
 @media (max-width:560px){
-  .stats-generic--framed-outline{grid-template-columns:1fr}
+  .stats-generic--framed-outline{grid-template-columns:minmax(0,1fr)}
   .stats-generic--shadow-stack .stats-g__cell{padding:1.3rem 1rem}
   .stats-generic--alternating-tint .stats-g__cell{padding:.9rem 1rem}
   .stats-generic--circle-badge-grid{grid-template-columns:repeat(2,1fr)}
-  .stats-generic--boxed-diagonal{grid-template-columns:1fr}
-  .stats-generic--wide-spaced-grid{grid-template-columns:1fr;gap:1.8rem}
-  .stats-generic--glass-panel-grid{grid-template-columns:1fr}
+  .stats-generic--boxed-diagonal{grid-template-columns:minmax(0,1fr)}
+  .stats-generic--wide-spaced-grid{grid-template-columns:minmax(0,1fr);gap:1.8rem}
+  .stats-generic--glass-panel-grid{grid-template-columns:minmax(0,1fr)}
   .stats-generic--oversized-index{grid-template-columns:repeat(2,1fr);gap:1.2rem}
   .stats-generic--compact-dense{grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:.4rem}
 }
@@ -4985,7 +5102,8 @@ main{flex:1;overflow-x:clip}
   .trustbar--minimal-text-row .container{gap:1.1rem}
 }
 @media (max-width:720px){
-  .trustbar--quiet-editorial .container{grid-template-columns:1fr;gap:1.2rem}
+  .trustbar--quiet-editorial .container{flex-direction:column;align-items:flex-start;gap:1rem}
+  .trustbar--quiet-editorial .trust-item{white-space:normal}
   .trustbar--divider-line-row .container{justify-content:flex-start}
   .trustbar--divider-line-row .trust-item{border-left:0;border-top:1px solid var(--c-border);padding:.7rem 0;width:100%}
   .trustbar--divider-line-row .trust-item:first-child{border-top:0}
@@ -5002,10 +5120,10 @@ main{flex:1;overflow-x:clip}
 }
 @media (max-width:560px){
   .trustbar--circle-badge-grid .container{grid-template-columns:repeat(2,1fr)}
-  .trustbar--wide-spaced-grid .container{grid-template-columns:1fr}
-  .trustbar--glass-panel-grid .container{grid-template-columns:1fr}
-  .trustbar--outline-only .container{grid-template-columns:1fr}
-  .trustbar--boxed-grid-table .container{grid-template-columns:1fr}
+  .trustbar--wide-spaced-grid .container{grid-template-columns:minmax(0,1fr)}
+  .trustbar--glass-panel-grid .container{grid-template-columns:minmax(0,1fr)}
+  .trustbar--outline-only .container{grid-template-columns:minmax(0,1fr)}
+  .trustbar--boxed-grid-table .container{grid-template-columns:minmax(0,1fr)}
   .trustbar--pill-tags .container{gap:.5rem}
   .trustbar--circle-badge-grid .trust-item .ico{width:46px;height:46px;padding:11px}
 }
@@ -5019,7 +5137,7 @@ main{flex:1;overflow-x:clip}
   .cov-generic--framed-outline{padding:1.4rem}
   .cov-generic--framed-outline .cov-group{padding:1.1rem 1.3rem}
   .cov-generic--underline-accent-list .cov-list{columns:1}
-  .cov-generic--split-duotone .cov-generic__list{grid-template-columns:1fr}
+  .cov-generic--split-duotone .cov-generic__list{grid-template-columns:minmax(0,1fr)}
   .cov-generic--split-duotone .cov-group:first-child{border-right:0;border-bottom:1px solid var(--c-border);padding:0 0 1.6rem}
   .cov-generic--split-duotone .cov-group:last-child{padding:1.6rem 0 0}
   /* Pin to exactly 2 columns here rather than letting auto-fill decide - at
@@ -5035,16 +5153,16 @@ main{flex:1;overflow-x:clip}
   .cov-generic--boxed-grid-table .cov-list{grid-template-columns:repeat(2,1fr)}
   .cov-generic--boxed-grid-table .cov-list li:nth-child(3n){border-right:1px solid var(--c-border)}
   .cov-generic--boxed-grid-table .cov-list li:nth-child(2n){border-right:0}
-  .cov-generic--glass-panel-grid .cov-generic__list{grid-template-columns:1fr}
+  .cov-generic--glass-panel-grid .cov-generic__list{grid-template-columns:minmax(0,1fr)}
 }
 @media (max-width:640px){
   .cov-generic--quiet-editorial .cov-list{columns:1}
-  .cov-generic--divider-line-row .cov-list{columns:auto;display:grid;grid-template-columns:1fr;column-rule:none}
+  .cov-generic--divider-line-row .cov-list{columns:auto;display:grid;grid-template-columns:minmax(0,1fr);column-rule:none}
   .cov-generic--wide-spaced-grid .cov-generic__list{gap:1.6rem}
   .cov-generic--wide-spaced-grid .cov-list{gap:1rem 1.4rem}
 }
 @media (max-width:560px){
-  .cov-generic--boxed-grid-table .cov-list{grid-template-columns:1fr}
+  .cov-generic--boxed-grid-table .cov-list{grid-template-columns:minmax(0,1fr)}
   .cov-generic--boxed-grid-table .cov-list li:nth-child(2n),.cov-generic--boxed-grid-table .cov-list li:nth-child(3n){border-right:0}
   .cov-generic--circle-badge-grid .cov-list{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
   .cov-generic--boxed-diagonal .cov-list{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
@@ -5064,7 +5182,9 @@ main{flex:1;overflow-x:clip}
   .cta-band--split-duotone h2{border-right:0;border-bottom:1px solid var(--c-border);
     padding-right:0;padding-bottom:1.2rem;margin-bottom:1.2rem}
   .cta-band--split-duotone p{margin-bottom:.4rem}
-  .cta-band--split-duotone .cta-band__btns{justify-content:center;margin-top:1.1rem}
+  /* wrap: the desktop rule is nowrap, and two large buttons (~170 + 183px)
+     overran a 289px column and clipped "Call" (Longview, 2026-10-12 sweep) */
+  .cta-band--split-duotone .cta-band__btns{justify-content:center;margin-top:1.1rem;flex-wrap:wrap}
 }
 @media (max-width:560px){
   .cta-band--split-duotone .cta-band__btns{justify-content:center}
@@ -5211,12 +5331,12 @@ main{flex:1;overflow-x:clip}
   .hero__stats--framed-outline .hstat{border-left:0;padding-left:0;border-top:1px dashed color-mix(in srgb,currentColor 26%,transparent);padding-top:1rem}
   .hero__stats--framed-outline .hstat:first-child{border-top:0;padding-top:0}
 
-  .hero__stats--split-duotone{grid-template-columns:1fr;padding:1rem 0;row-gap:0}
+  .hero__stats--split-duotone{grid-template-columns:minmax(0,1fr);padding:1rem 0;row-gap:0}
   .hero__stats--split-duotone::before{display:none}
   .hero__stats--split-duotone .hstat{padding:.9rem 0;border-top:1px solid color-mix(in srgb,currentColor 18%,transparent)}
   .hero__stats--split-duotone .hstat:first-child{border-top:0;padding-top:0}
 
-  .hero__stats--stacked-two-row{grid-auto-flow:row;grid-template-rows:none;grid-template-columns:1fr}
+  .hero__stats--stacked-two-row{grid-auto-flow:row;grid-template-rows:none;grid-template-columns:minmax(0,1fr)}
 
   .hero__stats--minimal-text-row{flex-wrap:wrap;overflow-x:visible}
   .hero__stats--minimal-text-row .hstat{margin-right:1.4rem}
@@ -5227,9 +5347,10 @@ main{flex:1;overflow-x:clip}
   .hero__stats--divider-line-row .hstat:last-child{padding-bottom:0;padding-right:0}
   .hero__stats--divider-line-row .hstat:not(:last-child)::after{right:0;left:0;top:auto;bottom:0;width:auto;height:1px}
 
-  .hero__stats--boxed-grid-table.hero__stats{grid-template-columns:1fr}
-  .hero__stats--boxed-grid-table.hero__stats .hstat{border-left:none;border-top:1px solid color-mix(in srgb,currentColor 20%,transparent)}
-  .hero__stats--boxed-grid-table.hero__stats .hstat:first-child{border-top:none}
+  /* Phone: 2x2, not a 4-row stack (457px tall at 375px) - compact, still
+     roomy enough for "Georgetown residents" to wrap inside its cell. */
+  .hero__stats--boxed-grid-table.hero__stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .hero__stats--boxed-grid-table.hero__stats .hstat{padding:.95rem .7rem}
 }
 
 @media (max-width:560px){
@@ -5241,7 +5362,7 @@ main{flex:1;overflow-x:clip}
 
 /* ---- hero (skin-only reskins of the split-image grid) ---- */
 /* Note: .hero__grid already collapses to a single column universally at
-   max-width:1000px via the existing '.hero__grid{grid-template-columns:1fr!important}'
+   max-width:1000px via the existing '.hero__grid{grid-template-columns:minmax(0,1fr)!important}'
    rule elsewhere in css.js (the !important beats any .hero--KEY .hero__grid
    desktop ratio regardless of source order/specificity) - these rules only
    tune decoration sizing so nothing looks oversized/cramped on small screens. */
@@ -5293,7 +5414,7 @@ main{flex:1;overflow-x:clip}
 @media (max-width:640px){
   .rev--compact-row{flex-direction:column;align-items:flex-start;gap:.6rem}
   .rev--compact-row .rev__who{border-left:0;padding-left:0;border-top:1px solid var(--c-border);padding-top:.6rem;width:100%}
-  .rev--split-duotone{grid-template-columns:1fr}
+  .rev--split-duotone{grid-template-columns:minmax(0,1fr)}
   .rev--split-duotone .rev__who{grid-column:1;grid-row:3;align-self:auto;border-left:0;border-top:1px solid var(--c-border);padding-left:0;padding-top:1rem;margin-top:.3rem}
 }
 
@@ -5307,12 +5428,12 @@ main{flex:1;overflow-x:clip}
   .gallery--mosaic-mixed{grid-template-columns:repeat(3,1fr);grid-auto-rows:96px}
 }
 @media (max-width:720px){
-  .gallery--grid-4,.gallery--framed-outline,.gallery--shadow-stack,.gallery--duotone-overlay,.gallery--rounded-blob,.gallery--staggered-offset,.gallery--bordered-frame,.gallery--ribbon-corner,.gallery--wide-hero-strip{grid-template-columns:1fr}
+  .gallery--grid-4,.gallery--framed-outline,.gallery--shadow-stack,.gallery--duotone-overlay,.gallery--rounded-blob,.gallery--staggered-offset,.gallery--bordered-frame,.gallery--ribbon-corner,.gallery--wide-hero-strip{grid-template-columns:minmax(0,1fr)}
   .gallery--grid-4 figure:first-child,.gallery--mosaic-mixed figure:nth-child(1),.gallery--mosaic-mixed figure:nth-child(4){grid-column:span 1;grid-row:span 1}
   .gallery--grid-5,.gallery--minimal-gap{grid-template-columns:repeat(2,1fr)}
   .gallery--shadow-stack{gap:1.4rem}
   .gallery--staggered-offset figure:nth-child(even){margin-top:0}
-  .gallery--mosaic-mixed{grid-template-columns:1fr;grid-auto-rows:auto}
+  .gallery--mosaic-mixed{grid-template-columns:minmax(0,1fr);grid-auto-rows:auto}
   .gallery--mosaic-mixed img,.gallery--mosaic-mixed .ph{aspect-ratio:4/3;height:auto}
   .gallery--wide-hero-strip figure:first-child img,.gallery--wide-hero-strip figure:first-child .ph{aspect-ratio:16/9}
 }
@@ -5339,7 +5460,7 @@ main{flex:1;overflow-x:clip}
 @media (max-width:640px){
   .footer--wide-spaced .footer-grid{flex-direction:column;gap:1.8rem;padding-block:2.4rem}
   .footer--wide-spaced .footer-grid>div,.footer--wide-spaced .footer-grid>div:first-child{flex:none;width:100%}
-  .footer--stacked-two-row .footer-grid{grid-template-columns:1fr;gap:1.4rem}
+  .footer--stacked-two-row .footer-grid{grid-template-columns:minmax(0,1fr);gap:1.4rem}
   /* Phone: 3-up is too cramped for link text like "Garage Door Installation",
      and 2-up strands the third column at half width with dead space beside
      it. Full-width rows each - the one arrangement with no orphan. The rail's
@@ -5349,7 +5470,8 @@ main{flex:1;overflow-x:clip}
 @media (max-width:560px){
 }
 ${design.variants.containerWidth === 'full' ? FULL_WIDTH_CSS : ''}
-`.trim();
+`.trim());
 }
 
 export default generateCss;
+

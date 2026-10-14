@@ -12,6 +12,7 @@ import { localBusiness, serviceSchema, faqSchema, breadcrumbSchema } from '../se
 import { esc } from '../util/html.js';
 import { titleCase } from '../util/strings.js';
 import { subSeed } from '../util/hash.js';
+import { icon } from '../assets/illustrations.js';
 
 /**
  * Augment the theme's (permuted) core order with the canonical extra sections
@@ -111,13 +112,32 @@ function augmentOrder(order, seed = 0, heroVariant = null, hasFaq = false) {
     const ctaIdx = out.indexOf('cta');
     out.splice(ctaIdx !== -1 ? ctaIdx : out.length, 0, 'faq');
   }
+  // aboutHighlights: real About-page sections on the homepage, directly before
+  // the FAQ (or before the closing CTA when a site has no FAQ). User
+  // 2026-10-12: "in the homepage there is not too much content so take
+  // content from the about page and add those in homepage before FAQ" - this
+  // supersedes the 2026-08-24 "no about on the homepage" rule for these
+  // sections (the old 'about' key above stays filtered). Renders nothing when
+  // there is no About content to bring over.
+  const beforeKey = out.includes('faq') ? 'faq' : 'cta';
+  const at = out.indexOf(beforeKey);
+  out.splice(at !== -1 ? at : out.length, 0, 'aboutHighlights');
+  // homeBlog: latest posts directly below the service-areas section (before
+  // the About block when a site has no areas section).
+  const areasAt = out.indexOf('areas');
+  out.splice(areasAt !== -1 ? areasAt + 1 : out.indexOf('aboutHighlights'), 0, 'homeBlog');
   return out;
 }
 
 /** Map a homepage section key to its renderer + availability guard. */
 function renderHomeSection(key, ctx) {
   switch (key) {
-    case 'hero': return C.hero(ctx);
+    case 'hero': {
+      // Remember what the hero says so trustbar() can skip repeating it.
+      const html = C.hero(ctx);
+      ctx._heroText = html.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
+      return html;
+    }
     case 'emergency': return C.emergency(ctx);
     case 'trustbar': return C.trustbar(ctx);
     case 'brandbar': return C.brandBar(ctx);
@@ -135,6 +155,8 @@ function renderHomeSection(key, ctx) {
     case 'areas': return C.areas(ctx);
     case 'financing': return C.financing(ctx);
     case 'faq': return (ctx.content.faq && ctx.content.faq.length) ? C.faq(ctx) : '';
+    case 'aboutHighlights': return C.aboutHighlights(ctx);
+    case 'homeBlog': return C.homeBlog(ctx);
     case 'ctaBanner': return C.ctaBanner(ctx);
     case 'cta': return C.cta(ctx);
     default: return '';
@@ -148,6 +170,8 @@ export function buildHome(ctx) {
     !!(ctx.content.faq && ctx.content.faq.length),
   );
   const main = order.map((k) => renderHomeSection(k, ctx)).filter(Boolean).join('\n');
+  // Homepage-only: other pages' trust bars must not filter against this hero.
+  delete ctx._heroText;
   const home = ctx.content.home || {};
   const jsonLd = [
     localBusiness(ctx.business, servedAreas(ctx)),
@@ -460,19 +484,35 @@ export function buildSuburbServicePages(ctx) {
 
 /**
  * The sibling / parent / city-wide link block that makes the nesting
- * navigable. Plain section markup reusing existing classes (`.side-links`,
- * `.area-chip`) so it themes itself from the site's palette with no new CSS.
+ * navigable: the OTHER services in this same suburb, as cards.
+ *
+ * Redesigned 2026-10-12 (user): it used to be a cloud of plain white chips
+ * under an eyebrow "Nearby" - but every link here is a service IN THIS
+ * suburb, not a nearby place, so the label was wrong and the chips read as
+ * an unstyled tag list. Now: "More garage door services in <suburb>" in the
+ * site's own service-card design - cards only (the zoom-out link strip was
+ * removed at the user's request; breadcrumb already links the suburb).
  */
 function relatedLinks(ctx, area, siblings, cityWide) {
-  const chips = siblings.map((x) => `<a class="area-chip" href="${esc(x.href)}"><span>${esc(x.label)}</span></a>`).join('');
-  const up = `<a class="area-chip" href="${esc(area.href)}"><span>All work in ${esc(area.name)}</span></a>`;
-  const wide = cityWide ? `<a class="area-chip" href="${esc(cityWide.href)}"><span>${esc((cityWide.service || {}).label || cityWide.id)} across ${esc(ctx.business.city)}</span></a>` : '';
-  if (!chips && !wide) return '';
-  return C.section(ctx, {
-    id: 'related', tone: 'tint', eyebrow: 'Nearby',
-    title: `More in ${esc(area.name)}`,
-    body: `<div class="cov-cloud">${up}${chips}${wide}</div>`,
-  });
+  if (!siblings.length) return '';
+  // SAME CARD DESIGN AS THE SITE'S OWN SERVICE GRID (user 2026-10-12): the
+  // normal services() component, pointed at this suburb's other services, so
+  // each site renders them in its own service-card variant - exactly like the
+  // suburb page's "What we do in <suburb>" block.
+  const cards = siblings.length ? C.services(ctx, {
+    id: 'related', tone: 'tint',
+    items: siblings.map((x) => ({
+      id: x.id, href: x.href, label: x.label,
+      // Content meta only - never the engine catalog's generic blurb.
+      blurb: (x.page && x.page.meta) || '',
+      icName: x.service && x.service.icon ? x.service.icon : 'wrench',
+    })),
+    eyebrow: `Also in ${area.name}`,
+    title: `More garage door services in ${area.name}`,
+    lead: `Other work we do for ${area.name} homes - each page covers that job for ${area.name} specifically.`,
+  }) : '';
+  // No zoom-out link strip under the cards (user 2026-10-12: removed).
+  return cards;
 }
 
 /** Request a Quote (/request-a-quote/) - embeds the operator's GoHighLevel form. Briefly /book/ "Schedule a Visit" on 2026-09-13, reverted same day (user). */
@@ -489,7 +529,9 @@ export function buildQuote(ctx) {
     // 2026-09-13 with the rest of the res/com messaging (user: engine-wide).
     `Local service across ${esc(b.city)}${b.state ? ', ' + esc(b.state) : ''} and nearby`,
   ].filter(Boolean);
-  const call = b.phone ? `<p class="quote-copy__call">Prefer to talk? <a href="tel:${esc(b.phone.replace(/[^0-9+]/g, ''))}">${esc(b.phone)}</a></p>` : '';
+  // The number is a real call button, not an inline text link (user
+  // 2026-10-12, engine-wide; replaces a data-site patch for 16 sites).
+  const call = b.phone ? `<div class="quote-copy__call"><span>Prefer to talk?</span><a class="btn btn--primary quote-call-btn" href="tel:${esc(b.phone.replace(/[^0-9+]/g, ''))}">${icon('phone', { size: 18 })}<span>Call ${esc(b.phone)}</span></a></div>` : '';
   const body = C.breadcrumbs(ctx, crumbs) +
     `<section class="section"><div class="container"><div class="quote-layout">
       <div class="quote-copy">
@@ -607,20 +649,18 @@ export function buildResourcesIndex(ctx) {
   const crumbs = [{ label: 'Home', href: ctx.urls.home }, { label: 'Blog', href: ctx.urls.resources }];
   const card = (t, i, featured = false) => `<a class="post-card${featured ? ' post-card--featured' : ''}" href="${esc(t.href || `${ctx.urls.resourceBase}${t.slug}/`)}">
       <div class="post-card__media">${C.mediaImg(ctx, `gallery-${i}`, t.page.h1 || t.name)}</div>
-      <div class="post-card__body"><h3>${esc(t.page.h1 || t.name)}</h3>${t.page.meta ? `<p>${esc(t.page.meta)}</p>` : ''}<span class="post-card__more">Read guide →</span></div>
+      <div class="post-card__body"><h3>${esc(t.page.h1 || t.name)}</h3>${t.page.meta ? `<p>${esc(t.page.meta)}</p>` : ''}<span class="post-card__more">Learn more →</span></div>
     </a>`;
   // Featured guide: the first real topic (an editorial/authoring-order
   // choice, not fabricated data) shown larger, ahead of the regular grid.
   // No "category filter" - topic content has no category field today (see
   // door-styles.js's no-fabrication note for the same reasoning applied to
   // product specs); the grid stays a flat, real list until that data exists.
-  const [featured, ...rest] = topics;
-  const cards = rest.map((t, i) => card(t, i + 1)).join('');
   const body = C.breadcrumbs(ctx, crumbs) +
     C.indexHero(ctx, { eyebrow: 'Resources', h1: `Garage door guides for ${ctx.business.city} homeowners`, sub: 'Straight answers on springs, openers, noises, and when a door is worth fixing.' }) +
     `<section class="section"><div class="container">
-      ${featured ? `<div class="post-featured">${card(featured, 0, true)}</div>` : ''}
-      <div class="post-grid">${cards}</div>
+      ${topics[0] ? `<div class="post-featured">${card(topics[0], 0, true)}</div>` : ''}
+      <div class="post-grid">${topics.slice(1).map((t, i) => card(t, i + 1)).join('')}</div>
     </div></section>` +
     C.areas(ctx) +
     C.services(ctx) +

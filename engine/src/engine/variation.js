@@ -128,12 +128,19 @@ export const FONT_ALTERNATES = {
 export const CONTAINER_WIDTHS = ['boxed', 'full'];
 export const FULL_WIDTH_SHARE = 25;
 
+
 export const SECTION_AXES = ['services', 'why', 'process', 'stats', 'trustbar', 'areas', 'cta', 'brandbar', 'heroStats', 'ctaBanner', 'faq', 'contentProse', 'rescom', 'reachSteps'];
 // Shared vocabulary of "generic skin" keys: each renders through a SINGLE
 // shared markup shape for its axis (see the matching GENERIC_*_KEYS branch in
 // components/index.js) - visual variety comes entirely from CSS in css.js
 // (search the key name, e.g. `--framed-outline`). This is what makes it safe
 // to reach 20 real variants per axis without a bespoke JS branch per key.
+/** Section layouts removed from their pools that pinned sites may still carry. */
+// `use` = the replacements: the two full coverage designs (map + directory,
+// directory panel + wide list), NOT another pill/chip skin - the chip skins
+// strand a few short pills on one side of an empty row the same way.
+const RETIRED_SECTION_VARIANTS = { areas: { banned: ['quiet-editorial'], use: ['map', 'directory'] } };
+
 export const SECTION_POOLS = {
   // 'divided-band'/'numbered-compact' retired (2026-08-24, explicit user
   // complaint - "service card need to proper card design") - both were
@@ -232,8 +239,13 @@ export const SECTION_POOLS = {
   // text. areas() now also caps the homepage preview to 10 items + a real
   // "View all N areas" link to /service-areas/ regardless of variant, so
   // this isn't just about which 3 keys are banned - see components/index.js.
+  // 'quiet-editorial' RETIRED 2026-10-12 (user, Chandler /chandler/: "what
+  // kind of design is this? dont add this kind of design in any pages") - no
+  // section heading, a lone count + caption floating on one side and a few
+  // outline pills stranded on the other. Pinned sites that had it are
+  // remapped below (RETIRED_SECTION_VARIANTS). Do not re-add.
   areas: ['map', 'directory', 'cards',
-    'framed-outline', 'shadow-stack', 'pill-tags', 'circle-badge-grid', 'quiet-editorial', 'boxed-diagonal', 'wide-spaced-grid', 'glass-panel-grid', 'split-duotone', 'outline-only', 'stacked-two-row', 'divider-line-row', 'boxed-grid-table'],
+    'framed-outline', 'shadow-stack', 'pill-tags', 'circle-badge-grid', 'boxed-diagonal', 'wide-spaced-grid', 'glass-panel-grid', 'split-duotone', 'outline-only', 'stacked-two-row', 'divider-line-row', 'boxed-grid-table'],
   cta: ['centered', 'split', 'bar',
     'boxed', 'diagonal', 'stacked-icon', 'minimal-line', 'framed-outline', 'shadow-stack', 'quiet-editorial', 'glass-panel', 'split-duotone', 'outline-only', 'oversized-badge', 'ribbon-corner', 'color-block', 'wide-spaced', 'ledger-style', 'ribbon-diagonal', 'ghost-frame'],
   // Static row vs. auto-scrolling marquee (single direction, or two rows
@@ -601,6 +613,12 @@ export function selectVariants(theme, seed, divergence = 0, forceVariants = null
   for (const axis of SECTION_AXES) sectionVariants[axis] = s2.pick(SECTION_POOLS[axis]);
   if (forceVariants && forceVariants.sectionVariants) {
     Object.assign(sectionVariants, forceVariants.sectionVariants);
+  }
+  // A retired layout can still arrive through a pinned/forced variant (sites
+  // built before it was retired). Swap it for a live one from the same pool,
+  // deterministically, so a rebuild never re-renders a banned design.
+  for (const [axis, { banned, use }] of Object.entries(RETIRED_SECTION_VARIANTS)) {
+    if (banned.includes(sectionVariants[axis])) sectionVariants[axis] = stream(subSeed(seed, `retired-${axis}`)).pick(use);
   }
 
   // Page-wide container width: 'boxed' (capped at the theme's maxWidth) or

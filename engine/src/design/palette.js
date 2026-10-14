@@ -173,7 +173,7 @@ export function buildPalette(brand, theme, seed) {
   // making the shared text tokens try to satisfy every surface at once.
   const hardestFor = (fg) => textSurfaces.reduce((a, b) => (contrast(fg, a) <= contrast(fg, b) ? a : b));
   const mutedBase = dark ? hslToHex({ h: darkNeutralHue, s: 0.1, l: 0.72 }) : hslToHex({ h: neutralHue, s: 0.16, l: 0.42 });
-  const mutedText = ensureContrast(mutedBase, hardestFor(mutedBase), 4.5);
+  const mutedText = ensureContrast(mutedBase, hardestFor(mutedBase), 4.8); // 4.8 not 4.5: headroom for panels tinted slightly off the 4 surfaces above (Burleson 4.37, Bozeman 4.497 - 2026-10-12 sweep)
   const border = dark
     ? hslToHex({ h: darkNeutralHue, s: 0.14, l: 0.24 })
     : hslToHex({ h: neutralHue, s: 0.2, l: 0.9 });

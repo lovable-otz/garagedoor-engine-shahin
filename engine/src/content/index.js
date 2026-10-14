@@ -499,8 +499,15 @@ function scrubUnpublishedNames(bundle, dropped, areas, business) {
     // A removed name takes its own trailing parenthetical with it: in
     // "Lockeford (8 mi), Lodi Park (3 mi NNW)" the "(3 mi NNW)" belongs to the
     // removed place (Lodi service-areas, 2026-09-14).
-    const P = D + "(?:'s|’s)?(?:[ \\t]*\\([^)\\n]*\\))?";
+    // ...and its trailing direction: "Alabama to the southwest" (Lehigh Acres,
+    // 2026-10-12) left "closer to to the southwest" behind.
+    const P = D + "(?:'s|’s)?(?:[ \\t]*\\([^)\\n]*\\))?(?:[ \\t]+to the (?:north|south|east|west)[a-z-]*)?";
     s = s
+      // A place phrase whose places were ALL removed, up to its comma, goes as
+      // a whole: ", closer to <A> to the southwest or <B> to the north, the
+      // trip..." -> ", the trip..." (Lehigh Acres, 2026-10-12). Must run first,
+      // before the list-separator rules below eat that comma.
+      .replace(new RegExp(',[ \\t]*(?:closer to|nearer to|near|toward|towards|out to|as far as|between)[ \\t]+' + P + '(?:[ \\t]*(?:,|and|or|&)[ \\t]*' + P + ')*[ \\t]*,', 'g'), ',')
       .replace(new RegExp('[ \\t]*,[ \\t]*(?:(?:and|or)[ \\t]+)?' + P, 'g'), '')
       .replace(new RegExp(P + '[ \\t]*,[ \\t]*', 'g'), '')
       .replace(new RegExp('[ \\t]+(?:and|or|&)[ \\t]+' + P, 'g'), '')
@@ -517,6 +524,33 @@ function scrubUnpublishedNames(bundle, dropped, areas, business) {
       // A list that lost every name: "including, among others" / "out to."
       .replace(/\b(?:including|like|such as)[ \t]*,[ \t]*/g, 'including ')
       .replace(/[ \t]+(?:out to|as far as|including|like|such as|from|to|near|around|in)[ \t]*([.;:!])/g, '$1');
+    // Second-order leftovers, repeated until stable: one rule's output can be
+    // the next one's input ("from A to B." -> "from to." -> "from." needs two
+    // passes). Seen 2026-10-12 on Henderson ("eight named pockets - from to
+    // to - dates...", "built 1979-2006, from.") and Chandler ("Sun Lakes and
+    // and how to reach us"). Deliberately narrow: plain "comes in." / "used
+    // to." are real English and must survive.
+    for (let pass = 0; pass < 4; pass++) {
+      const before = s;
+      s = s
+        // a dashed aside that lost every name: " - from to to - " -> " "
+        .replace(/[ \t]*[–—-][ \t]*from(?:[ \t]+(?:to|and|or))+[ \t]*[–—-][ \t]*/g, ' ')
+        // a bare "from to (to...)" range with nothing left in it
+        .replace(/[ \t]*\bfrom(?:[ \t]+to)+\b/g, '')
+        // doubled conjunctions: "Sun Lakes and and how" -> "Sun Lakes and how"
+        .replace(/\b(and|or)(?:[ \t]+(?:and|or))+\b/g, '$1')
+        // ", from." / ", across." - a range that lost both ends
+        .replace(/,[ \t]*(?:from|across|including|like|such as|out to)[ \t]*([.;:!])/g, '$1')
+        // "eight named neighborhoods from." / "serving homes from." - a place
+        // list after a place noun that lost every name
+        .replace(/\b(neighbou?rhoods|homes|houses|areas|pockets|communities|towns|suburbs|streets|subdivisions|cities)[ \t]+(?:from|across|including|like|such as|in)[ \t]*([.;:!])/gi, '$1$2')
+        .replace(/,[ \t]*([.;:!?])/g, '$1')
+        // a place phrase that lost its place before a comma: ", closer to, the trip"
+        .replace(/,?[ \t]*\b(?:closer to|nearer to|near|toward|towards|out to|as far as)[ \t]*,/g, ',')
+        .replace(/,[ \t]*,/g, ',')
+        .replace(/[ \t]{2,}/g, ' ');
+      if (s === before) break;
+    }
     s = s
       // Emphasis/link wrappers left empty by a removed name: "**Glenn Heights** (18 mi)" -> "**** (18 mi)".
       .replace(/\*\*[ \t]*\*\*|__[ \t]*__|\[[ \t]*\]\([^)]*\)/g, '')

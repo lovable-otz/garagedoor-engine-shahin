@@ -22,6 +22,7 @@ import { fnv1a } from '../util/hash.js';
 import { isDark } from '../util/color.js';
 import { humanList, commas, titleCase } from '../util/strings.js';
 import { DOOR_STYLE_INFO, INSULATION_PRIMER } from '../../config/door-styles.js';
+import { QUOTE_FORM_NAME } from '../../config/quote-form.js';
 
 // ---- small helpers -------------------------------------------------------
 
@@ -161,12 +162,14 @@ export function announcementBar(ctx) {
  * header only needs it when the theme itself is dark. Deciding from the actual
  * palette colour rather than from `mood` keeps that true for any future theme.
  */
-function brandMark(ctx, surface = 'bg') {
+/** `decorative`: the logo sits in a link that also shows the business name as
+ *  text, so a screen reader would announce the name twice - give it alt="". */
+function brandMark(ctx, surface = 'bg', decorative = false) {
   const logo = logoImage(ctx);
   if (logo) {
     const onDark = isDark(ctx.design.palette[surface] || ctx.design.palette.bg);
     const cls = `brand__mark brand__mark--logo${onDark ? ' brand__mark--on-dark' : ''}`;
-    return `<img class="${cls}" src="${esc(logo.src)}" alt="${esc(logo.alt)}">`;
+    return `<img class="${cls}" src="${esc(logo.src)}" alt="${decorative ? '' : esc(logo.alt)}">`;
   }
   return `<span class="brand__mark">${logoMark(ctx.business)}</span>`;
 }
@@ -237,7 +240,7 @@ export function header(ctx) {
     announcementBar(ctx),
     `<header class="site-header nav--${esc(nav)}">
       <div class="container nav">
-        <a class="brand" href="${esc(urls.home)}">${brandMark(ctx, 'bg')}<span>${esc(business.name)}</span></a>
+        <a class="brand" href="${esc(urls.home)}">${brandMark(ctx, 'bg', true)}<span>${esc(business.name)}</span></a>
         <nav aria-label="Primary">
           <button class="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Toggle menu">☰</button>
           <ul class="nav__links" id="nav-links">${links}</ul>
@@ -385,8 +388,25 @@ export function trustbar(ctx) {
   if (business.reviews.length && business.rating != null) {
     items.push(`<div class="trust-item">${icon('star', { size: 18 })} <b>${esc(business.rating)} (${esc(business.reviewCount || business.reviews.length)} reviews)</b></div>`);
   }
+  // On the homepage, drop any fact the hero above already shows (several hero
+  // variants carry their own "8 services / 6 areas / diagnosis first" strip),
+  // and the whole bar when fewer than two facts are left.
+  let shown = items;
+  if (ctx._heroText) {
+    const h = ctx._heroText.toLowerCase();
+    shown = items.filter((it) => {
+      const t = it.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().toLowerCase();
+      const n = (t.match(/\d[\d,.]*/) || [''])[0];
+      if (/diagnosis/.test(t)) return !/diagnosis/.test(h);
+      if (/\bservices?\b/.test(t) && n) return !new RegExp(`\\b${n}\\s+services`).test(h);
+      if (/\bareas?\b/.test(t) && n) return !new RegExp(`\\b${n}\\s+(service\\s+)?areas`).test(h);
+      if (/\breviews?\b/.test(t)) return !/reviews?/.test(h);
+      return !h.includes(t);
+    });
+    if (shown.length < 2) return '';
+  }
   const variant = (ctx.design.variants.sectionVariants || {}).trustbar || 'pills';
-  return `<section class="trustbar trustbar--${esc(variant)}" aria-label="At a glance"><div class="container">${items.join('')}</div></section>`;
+  return `<section class="trustbar trustbar--${esc(variant)}" aria-label="At a glance"><div class="container">${shown.join('')}</div></section>`;
 }
 
 /** Brand / badge bar - brands SERVICED (operator config) + review-platform badges. */
@@ -487,7 +507,7 @@ export function process(ctx) {
   }
   if (variant === 'stacked-panel') {
     // Full-width alternating panels with a large number watermark.
-    const rows2 = steps.map(([, t, d], i) => `<div class="proc-stack__row"><span class="proc-stack__n">${String(i + 1).padStart(2, '0')}</span>${procMedia(ctx, i, alt(i), 'proc-stack__media')}<div><h3>${t}</h3><p>${d}</p></div></div>`).join('');
+    const rows2 = steps.map(([, t, d], i) => `<div class="proc-stack__row"><span class="proc-stack__n" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span>${procMedia(ctx, i, alt(i), 'proc-stack__media')}<div><h3>${t}</h3><p>${d}</p></div></div>`).join('');
     return section(ctx, { id: 'process', tone: 'default', eyebrow: 'How it works', title: 'From “it’s stuck” to “it’s fixed”', body: `<div class="proc-stacked">${rows2}</div>` });
   }
   // ('chat-bubbles' removed 2026-08-25 - see SECTION_POOLS.process in
@@ -576,7 +596,7 @@ export function services(ctx, opts = {}) {
     });
   const nh = opts.noHead;
   const headOpts = {
-    id: 'services', tone: opts.tone || 'alt', h1: opts.h1 || false,
+    id: opts.id || 'services', tone: opts.tone || 'alt', h1: opts.h1 || false,
     eyebrow: nh ? '' : (opts.eyebrow || 'What we do'),
     title: nh ? '' : (opts.title || 'Garage Door Services'),
     lead: nh ? '' : (opts.lead || `Repair and installation work for ${esc(ctx.business.city)} homes and businesses.`),
@@ -595,7 +615,7 @@ export function services(ctx, opts = {}) {
     </a>`).join('');
     const toneClass = headOpts.tone === 'alt' ? ' section--alt' : headOpts.tone === 'tint' ? ' section--tint' : '';
     if (nh) {
-      return `<section class="section${toneClass}" id="services"><div class="container"><div class="svc-rows svc-rows--full">${rows}</div></div></section>`;
+      return `<section class="section${toneClass}" id="${esc(headOpts.id)}"><div class="container"><div class="svc-rows svc-rows--full">${rows}</div></div></section>`;
     }
     const HT = headOpts.h1 ? 'h1' : 'h2';
     const intro = `<div class="svc-list-intro">
@@ -604,7 +624,7 @@ export function services(ctx, opts = {}) {
       ${headOpts.lead ? `<p class="lead">${esc(headOpts.lead)}</p>` : ''}
       <div class="hero__cta cta-${esc(design.variants.ctaStyle)}" style="margin-top:1.2rem">${btn(primaryCta(ctx).href, primaryCta(ctx).label, 'primary', 'btn--solid')}</div>
     </div>`;
-    return `<section class="section${toneClass}" id="services"><div class="container"><div class="svc-listing">${intro}<div class="svc-rows">${rows}</div></div></div></section>`;
+    return `<section class="section${toneClass}" id="${esc(headOpts.id)}"><div class="container"><div class="svc-listing">${intro}<div class="svc-rows">${rows}</div></div></div></section>`;
   }
 
   // HCARDS - horizontal cards, icon pinned in its own left column.
@@ -646,7 +666,6 @@ export function services(ctx, opts = {}) {
   if (GENERIC_SERVICE_KEYS.includes(gv)) {
     const gcards = items.map((it) => `<a class="svc-g" href="${esc(it.href)}">
       ${svcMedia(ctx, it.id, it.label, 'svc-g__media')}
-      <span class="svc-g__ic" aria-hidden="true">${icon(it.icName, { size: 22 })}</span>
       <span class="svc-g__body"><b>${esc(it.label)}</b><span>${esc(it.blurb)}</span></span>
     </a>`).join('');
     return section(ctx, { ...headOpts, body: `<div class="svc-generic svc-generic--${esc(gv)}">${gcards}</div>` });
@@ -659,9 +678,13 @@ export function services(ctx, opts = {}) {
   // <span>: an <a> inside an <a> is invalid HTML and browsers silently unnest
   // it, which would break the card link. This is the same shape .svc-row and
   // .svc-g already use.
+  // No icon tile on any service card: every skin already shows a photo, and
+  // photo + icon read as redundant (user 2026-10-12, first on Henderson's
+  // ribbon-corner, then "remove the icon from all service card design which
+  // have the icon and images"). Four skins only hid it with CSS; it is no
+  // longer emitted at all.
   const cards = items.map((it, i) => `<a class="svc svc--${esc(skin)}${gv === 'bento' ? ` bento-cell${i === 0 ? ' bento-cell--lg' : ''}` : ''}" href="${esc(it.href)}">
       ${svcMedia(ctx, it.id, it.label)}
-      <div class="svc__icon" aria-hidden="true">${icon(it.icName, { size: 26 })}</div>
       <h3>${esc(it.label)}</h3>
       <p>${esc(it.blurb)}</p>
       <span class="svc__more">Learn more ${icon('arrow', { size: 16 })}</span>
@@ -722,7 +745,9 @@ export function stats(ctx) {
   }
   if (variant === 'ring') {
     // Each number sits inside a circular outline badge instead of bare text.
-    const rcells = items.slice(0, 4).map(([n, l, ic]) => `<div class="sr-cell">${statIcon(ic, 18)}<div class="sr-circle"><span>${esc(n)}</span></div><span class="sr-l">${esc(l)}</span></div>`).join('');
+    // Icon sits INSIDE the ring above the number (user 2026-10-12, Addison:
+    // the old floating icon chip above a thin empty ring read as unfinished).
+    const rcells = items.slice(0, 4).map(([n, l, ic]) => `<div class="sr-cell"><div class="sr-circle">${statIcon(ic, 26)}<span class="sr-n">${esc(n)}</span></div><span class="sr-l">${esc(l)}</span></div>`).join('');
     return `<section class="section"><div class="container"><div class="stats-ring">${rcells}</div></div></section>`;
   }
   if (variant === 'columns') {
@@ -1185,7 +1210,10 @@ export function ctaBanner(ctx, opts = {}) {
   // phone the one number a visitor most wants to tap was the only thing here
   // they couldn't. The copy now just sets context; both actions are real
   // buttons below (user request, 2026-08-25).
-  const text = opts.text || `Serving ${loc} - tell us what your door’s doing and we’ll take it from there.`;
+  // Must not echo the closing cta() band ("Tell us what it's doing ... we'll
+  // take it from there") - both sit on the same page (user 2026-10-12, "too
+  // much duplication"). Diagnosis-first is the engine's standing trust line.
+  const text = opts.text || `Not sure which repair your door needs in ${loc}? Describe what it’s doing - every job starts with a diagnosis.`;
   const variant = (ctx.design.variants.sectionVariants || {}).ctaBanner || 'bold-strip';
   const style = ctx.design.variants.ctaStyle;
   // BOTH actions, on every variant: request-a-quote plus a tel: call button
@@ -1297,9 +1325,12 @@ export function quoteEmbed(ctx) {
         <span class="ghl-sk ghl-sk--label"></span><span class="ghl-sk ghl-sk--area"></span>
         <span class="ghl-sk ghl-sk--btn"></span>
       </div>
-      <iframe src="${esc(url)}" title="Request a quote"
-        id="inline-${esc(formId)}" data-form-id="${esc(formId)}" data-layout='{"id":"INLINE"}'
-        data-trigger-type="alwaysShow" data-activation-type="alwaysActivated" data-deactivation-type="neverDeactivate"
+      <iframe src="${esc(url)}" title="${esc(QUOTE_FORM_NAME)}"
+        id="inline-${esc(formId)}" data-form-id="${esc(formId)}" data-layout="{'id':'INLINE'}"
+        data-layout-iframe-id="inline-${esc(formId)}" data-form-name="${esc(QUOTE_FORM_NAME)}" data-height="${h}"
+        data-trigger-type="alwaysShow" data-trigger-value="" data-activation-type="alwaysActivated" data-activation-value=""
+        data-deactivation-type="neverDeactivate" data-deactivation-value=""
+        data-cookie-consent="true" data-cookie-consent-provider="auto"
         style="width:100%;min-height:${h}px;border:0;border-radius:var(--radius-lg);background:transparent;display:block"></iframe>
     </div>
     <script src="https://link.msgsndr.com/js/form_embed.js" async></script>
@@ -1334,6 +1365,14 @@ export function quoteEmbed(ctx) {
       var giveup=function(){if(!visible()){f.style.opacity='';f.style.visibility='';
         f.style.pointerEvents='';f.style.left='';f.style.position='relative'}done()};
       to=setTimeout(giveup,20000);
+      // FIT THE FORM, NO WHITE TAIL (user 2026-10-12). The 1336px data-height
+      // floor is only a loading placeholder; the real form renders shorter
+      // (~1050px desktop, ~1200px phone) and form_embed.js sets that exact
+      // style.height. Once it has, drop both floors so the white card ends
+      // where the form ends. Kept watching: the resizer re-posts on resize.
+      var fit=function(){var hh=parseFloat(f.style.height);
+        if(hh>200&&getComputedStyle(f).position!=='absolute'){f.style.minHeight='0';e.classList.add('is-sized')}};
+      new MutationObserver(fit).observe(f,{attributes:true,attributeFilter:['style']});fit();
     })();</script>`;
   }
   // No per-business form backend connected yet - a real quote form (real
@@ -1513,7 +1552,7 @@ export function footer(ctx) {
     has.areas ? `<li><a href="${esc(urls.areas)}">Service Areas</a></li>` : '',
     has.guides ? `<li><a href="${esc(urls.resources)}">Blog</a></li>` : '',
     `<li><a href="${esc(urls.quote)}">Request a Quote</a></li>`,
-    has.faq ? `<li><a href="${esc(urls.faq)}">FAQ</a></li>` : '',
+    // No FAQ link in the footer (user 2026-10-12, engine-wide).
   ].join('');
 
   // Description names only the work this site actually publishes pages for.
@@ -1527,10 +1566,10 @@ export function footer(ctx) {
   const street = cut > 0 ? addr.slice(0, cut).trim() : '';
   const locality = cut > 0 ? addr.slice(cut + 1).trim() : cityState;
 
-  const logo = logoImage(ctx);
-  const brand = logo
-    ? `<a class="sfoot__logo" href="${esc(urls.home)}" aria-label="${esc(business.name)} home">${brandMark(ctx, 'secondary')}</a>`
-    : `<a class="brand sfoot__logo" href="${esc(urls.home)}" style="color:inherit">${brandMark(ctx, 'secondary')}<span>${esc(business.name)}</span></a>`;
+  // Logo + brand name, same as the header (user 2026-10-12: the logo-only
+  // footer showed no business name). The name is the link text, so the logo
+  // is decorative (alt="").
+  const brand = `<a class="brand sfoot__logo" href="${esc(urls.home)}" style="color:inherit">${brandMark(ctx, 'secondary', true)}<span>${esc(business.name)}</span></a>`;
 
   const badge = (ico, text) => `<li>${icon(ico, { size: 16 })}<span>${text}</span></li>`;
   const badges = [];
@@ -1794,7 +1833,10 @@ function renderContentTemplate(ctx, s, i, tpl, id, variant) {
     </div></div></section>`;
   }
   if (tpl === 'media-left' || tpl === 'media-right') {
-    const img = image(ctx, `gallery-${i}`, `${esc(ctx.business.city)} garage door`);
+    // Alt names the section it illustrates, so several photo/text sections on
+    // one page don't all read "<City> garage door" (and no double-escaping:
+    // image() escapes the alt itself).
+    const img = image(ctx, `gallery-${i}`, `${h2Label(s.h2)} - ${ctx.business.city} garage door`);
     const rev = tpl === 'media-right' ? ' prose-media--rev' : '';
     return `<section class="section${tint}" id="${id}"><div class="container"><div class="prose-media${rev}">
       <figure class="prose-media__fig">${imageHtml(img)}</figure>
@@ -1815,6 +1857,90 @@ function renderContentTemplate(ctx, s, i, tpl, id, variant) {
   }
   // 'flavor'
   return `<section class="section${tint}" id="${id}"><div class="container">${contentFlavorBlock(variant, s, i)}</div></section>`;
+}
+
+// TOPIC of an authored About section, from its heading - so the About block
+// on the homepage never repeats a subject the homepage already covers: the
+// process steps ("call") and the service-areas section ("areas"). Headings
+// differ by site, topics don't. First match wins (specific topics first).
+const SECTION_TOPICS = [
+  ['housing', /\b(housing|built|houses|stock|homes here|what gets built)\b/i],
+  ['who', /\b(who (turns|does|shows|comes)|crew|our team|technicians?)\b/i],
+  ['cost', /\b(cost|costs|pay|price|pricing|quote)\b/i],
+  ['worth', /\b(worth|replace|replacement|repair or)\b/i],
+  ['jobs', /\b(jobs?|called out|what we (do|fix)|come up|we fix|actually do)\b/i],
+  ['call', /\b(call|calls|visit|book\w*|after you|when you|what happens|how .* goes|next|contact\w*|reach|getting hold|get hold)\b/i],
+  ['areas', /\b(areas?|cover|travel|neighbou?rhoods?|where we|towns?|communities)\b/i],
+];
+const topicOf = (h2) => (SECTION_TOPICS.find(([, re]) => re.test(h2Label(h2))) || [`h:${h2Label(h2).toLowerCase()}`])[0];
+
+/** Up to two About sections for the homepage: topics the homepage doesn't
+ *  already cover first; only if that leaves fewer than two, top up with the
+ *  remaining sections (still real copy, e.g. Addison's "Getting Hold of Us"). */
+function aboutPicks(ctx) {
+  const sections = ((ctx.content.about || {}).sections || []).filter((s) => s && s.body);
+  const used = new Set(['call', 'areas']);
+  const picked = [];
+  for (const s of sections) {
+    if (picked.length >= 2) break;
+    const t = topicOf(s.h2);
+    if (used.has(t)) continue;
+    used.add(t); picked.push(s);
+  }
+  // Top-up order: other real sections before pure contact ones ("Contacting
+  // Us", "How to Reach Us") - the homepage already ends with its own CTA.
+  const CONTACT_ONLY = /\b(contact\w*|reach(ing)?|get(ting)?\s+(hold|in\s+touch)|call\s+us)\b/i;
+  const rest = sections.filter((s) => !picked.includes(s));
+  for (const s of [...rest.filter((x) => !CONTACT_ONLY.test(h2Label(x.h2))), ...rest.filter((x) => CONTACT_ONLY.test(h2Label(x.h2)))]) {
+    if (picked.length >= 2) break;
+    picked.push(s);
+  }
+  return picked;
+}
+
+/**
+ * Latest blog posts on the homepage, right below the service-areas section
+ * (user 2026-10-12: "show 3 or 4 blogs card and all button below the service
+ * area section"). 3 cards on boxed sites, 4 on full-width ones (the row is
+ * wider), fewer when a site has fewer posts; a "View all blogs" button links
+ * to the blog index. Uses the site's real posts only - '' when there are none.
+ */
+export function homeBlog(ctx) {
+  if (!ctx.has.guides) return '';
+  const max = ctx.design.variants.containerWidth === 'full' ? 4 : 3;
+  const posts = (ctx.content.topics || []).filter((t) => t && t.page).slice(0, max);
+  if (!posts.length) return '';
+  const cards = posts.map((t, i) => `<a class="post-card" href="${esc(t.href || `${ctx.urls.resourceBase}${t.slug}/`)}">
+      <div class="post-card__media">${mediaImg(ctx, `gallery-${i + 8}`, t.page.h1 || t.name)}</div>
+      <div class="post-card__body"><h3>${esc(t.page.h1 || t.name)}</h3>${t.page.meta ? `<p>${esc(t.page.meta)}</p>` : ''}<span class="post-card__more">Learn more →</span></div>
+    </a>`).join('');
+  return section(ctx, {
+    id: 'home-blog', tone: 'tint', eyebrow: 'From the blog',
+    title: `Garage door guides for ${esc(ctx.business.city)} homeowners`,
+    body: `<div class="post-grid post-grid--n${posts.length}">${cards}</div>
+      <div class="home-blog__all"><a class="btn btn--ghost" href="${esc(ctx.urls.resources)}">View all blogs ${icon('arrow', { size: 16 })}</a></div>`,
+  });
+}
+
+/**
+ * About-page content on the homepage (placed before the FAQ by pages.js).
+ * Brings over the About page's authored sections, never one whose heading the
+ * home page already uses, and preferring non-contact sections over "contact /
+ * reach us" ones (used only to reach two - the homepage ends with a CTA). At most
+ * two, each as a photo + text split with the photo alternating sides. Real
+ * content only - returns '' when there is nothing left to show.
+ */
+export function aboutHighlights(ctx) {
+  const about = ctx.content.about;
+  if (!about || !(about.sections || []).length) return '';
+  const picked = aboutPicks(ctx);
+  if (!picked.length) return '';
+  // Every picked section gets a photo, alternating sides (user 2026-10-12:
+  // the second one rendered as a text-only block). No "More about" button.
+  const layouts = ['media-left', 'media-right'];
+  const variant = (ctx.design.variants.sectionVariants || {}).contentProse || 'stacked';
+  return `<div class="home-about">${picked.map((s, i) => renderContentTemplate(ctx, s, i, layouts[i % 2],
+    `about-${i}-${(fnv1a(h2Label(s.h2)) % 100000).toString(36)}`, variant)).join('')}</div>`;
 }
 
 export function contentSections(ctx, page, opts = {}) {
@@ -1980,7 +2106,7 @@ export function sidebar(ctx, { excludeServiceId, excludeTopicSlug } = {}) {
       <h3>Get a quote</h3>
       <p>Tell us what your door’s doing in ${esc(b.city)} - we’ll take it from there.</p>
       <a class="btn btn--primary" href="${esc(c.href)}">${esc(c.label)}</a>
-      ${call ? `<a class="side-card__phone" href="${esc(call.href)}">${icon('phone', { size: 15 })}${esc(b.phone)}</a>` : ''}
+      ${call ? `<a class="btn side-card__call" href="${esc(call.href)}">${icon('phone', { size: 16 })}<span>Call ${esc(b.phone)}</span></a>` : ''}
     </div>
     ${svcs.length ? `<div class="side-card"><h4>Services</h4><ul class="side-links">${svcs.map((s) => `<li><a href="${esc(svcHref(s, ctx.urls))}">${icon('arrow', { size: 14 })}${esc((s.service || {}).label || s.id)}</a></li>`).join('')}</ul></div>` : ''}
     ${guides.length ? `<div class="side-card"><h4>Guides</h4><ul class="side-links">${guides.map((t) => `<li><a href="${esc(topicHref(t, ctx.urls))}">${icon('arrow', { size: 14 })}${esc(t.page.h1 || t.name)}</a></li>`).join('')}</ul></div>` : ''}

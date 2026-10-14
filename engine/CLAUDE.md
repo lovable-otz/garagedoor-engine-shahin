@@ -119,6 +119,100 @@ moved.
 - Not part of `differenceScore`, so uniqueness scores are unchanged; it is
   recorded in the fingerprint for the registry.
 
+## Extra homepage sections - added, then REMOVED (2026-10-12)
+
+User first asked for more homepage sections from existing content (home.json
+story, symptoms, local causes, neighborhood spotlight, latest guides, service
+FAQs), then: "i dont need the new sections so remove all the new section you
+added without about section before faq sections". All of them, and the merges
+that came with them (symptom text in service cards, service FAQs topping up
+the FAQ), are gone from the engine and the built sites. Do not re-add without
+a new request.
+
+Kept from that round (they fix duplication between ORIGINAL sections):
+- homepage trustbar drops facts the hero already shows (city, N services,
+  N areas, diagnosis) and hides itself under 2 facts (`ctx._heroText`, set in
+  pages.js renderHomeSection('hero'), cleared after the homepage renders);
+- `ctaBanner` default copy no longer echoes the closing cta() band.
+
+Homepage now: hero > services > process > ctaBanner > why > gallery > areas >
+homeBlog > aboutHighlights (x<=2) > faq > cta
+
+- `homeBlog` (added 2026-10-12 on request, "show 3 or 4 blogs card and all
+  button below the service area section"): latest posts as .post-card photo
+  cards + "View all guides" button to /blog/. 3 cards on boxed sites, 4 on
+  full-width ones, fewer if the site has fewer posts; '' when no blog.
+  `.post-grid--n3` stays 3-across down to 721px (no stranded third card).
+
+## About content on the homepage, before the FAQ (2026-10-12)
+
+User: "in the homepage there is not too much content so take content from the
+about page and add those in homepage before FAQ sections". This SUPERSEDES the
+2026-08-24 "no about on the homepage" rule for these sections.
+
+- `aboutHighlights()` (components/index.js), placed by `augmentOrder()` in
+  pages.js directly before `faq` (before `cta` when there is no FAQ).
+- Takes up to 2 About sections (`aboutPicks`): first those whose TOPIC
+  (`SECTION_TOPICS`: housing/who/cost/worth/jobs/call/areas) the homepage does
+  not already cover (process = "call", areas section = "areas"); if that gives
+  fewer than 2, tops up with the rest, real content before pure contact
+  sections ("Contacting Us").
+  Each section is a photo + text split, photo alternating sides (left, then
+  right). The "More about" button was removed (user 2026-10-12). Renders
+  nothing when no About content is left.
+- Name-removal leftovers: `scrubUnpublishedNames` now runs a repeat-until-
+  stable pass for "from to to", doubled "and and", ", from." and
+  "<place noun> from." (e.g. "eight named neighborhoods from."). First 5
+  sites: 7 broken phrases -> 0.
+- First 5 TWO-D2 sites: +1 to +2 sections, +177 to +426 words each.
+- Also 2026-10-12: CSS comments are stripped from every generated stylesheet
+  (`stripCssComments` in css.js) - they named other client sites in
+  view-source; pages ~31% smaller, rendering unchanged.
+
+## Alt text + responsive audit (2026-10-12)
+
+User: "all images has proper alt text? all pages responsiveness?"
+- Alt: all <img> already had non-empty alt. Fixed: header/footer logo next to
+  the visible business name is now alt="" (`brandMark(ctx, surface, true)`) -
+  it was read twice; photo/text section images (`renderContentTemplate`) alt
+  is now "<section heading> - <City> garage door" instead of the same
+  "<City> garage door" on every one (also removed a double esc()).
+- Responsive sweep: every page of the 5 sites at 320/375/768/1280 (1,484
+  loads) checking page h-scroll, elements past the edge, text < 12px, tap
+  targets < 24px, broken images. Fixed:
+  - 1000px phone rule collapsed split grids to `1fr` (min-content) -> FAQ on
+    Fort Mill /faq/ was 384px wide at 375 and clipped; now minmax(0,1fr).
+  - sticky .mobile-cta clipped "Call" at 320px -> buttons min-width:0 and a
+    <=360px compact size.
+  - breadcrumb links and short footer links were 17px tall -> padded to 24px+.
+  Result: 0 issues on all 1,484 checks. (Hero background images that extend
+  past the edge inside the clipped hero are a deliberate zoom - not an issue.)
+
+## Sidebar quote card: phone is a button (2026-10-12)
+
+User: the "Get a quote" sidebar card showed the phone as plain text. It is now
+`<a class="btn side-card__call" href="tel:...">` with the phone icon and
+"Call (xxx) xxx-xxxx" - an outlined button (white border/text on the card's
+brand gradient) under the solid "Request a Quote" button, same width, both
+fixed at 48px tall. Engine-wide (sidebar() in components/index.js).
+
+## Blog index layouts - added, then REMOVED (2026-10-12)
+
+A per-site `blogLayout` axis (classic / rows / overlay / magazine / numbered)
+was added, then removed on request: "there is no variations needed for the
+blogs card in the blog page". Every site's /blog/ uses the ONE original
+layout again (featured .post-card + .post-grid). The axis, its CSS, the
+least-used picker in batch.js and the fingerprint field are all gone; the 5
+rebuilt sites' registry records no longer carry it. Do not re-add without a
+new request. (The homepage `homeBlog` section is separate and stays.)
+- Also 2026-10-12: NO service card shows an icon tile any more - every
+  serviceCard skin already shows a photo, and the user asked to remove the
+  icon from all cards that had both. The `.svc__icon` / `.svc-g__ic` markup is
+  no longer emitted (4 skins had only hidden it with CSS). Checked all 19
+  skins at 1280 and 375: title sits 14-29px under the photo, no overflow;
+  `icon-top` needed its photo's bottom margin back (the icon used to overlap
+  it and carry the spacing).
+
 ## Folder names = domain = repo name (2026-10-07)
 
 User: "foldername will be with the domain name as the repo name is with the
@@ -2712,3 +2806,27 @@ User: "now generate ruhul remaining sites, dont push and follow each site design
 
 ### PUBLISHED + DEPLOYED (2026-09-17): Ruhul's 7
 User confirmed. Pushed with `publish-site.sh`, 3 sites per minute, from copies without `.template-rebuild.json`. Each site's PR #1 was squash-merged with the title "Update content, routes and design fixes", and all 7 "Build and Deploy to R2" runs succeeded.
+
+## 2026-10-12 — quote form, footer, QA hardening (engine-wide)
+- Footer: no FAQ link. Quote page "Prefer to talk?" is a real button (`.quote-call-btn`, 48px).
+- Every site embeds GHL form `9edkR66EHmW5UBwtrYry` ("Contact Us | Garage Door", height 1336) via `config/quote-form.js` + `normalize.js`; full GHL data-* attributes on the iframe, `form_embed.js` loaded.
+- Responsive: every single-column `grid-template-columns:1fr` is now `minmax(0,1fr)` (a bare 1fr can't shrink below min-content → 320px overflow on contact/quote/process grids). Headings get `overflow-wrap:break-word`. `.hero__stats--divided` wraps ≤900px; `--minimal-text-row` always wraps. Split-duotone CTA buttons wrap on phones.
+- Contrast: mutedText targets 4.8 (headroom over tinted panels); dark/brand section text 92%; stat labels and hero chips full opacity; ghost-frame CTA text mixes muted→text; shadow-stack step numbers 78%; `proc-stack__n` watermark is `aria-hidden`.
+- Footer brand = logo + business name (like the header), logo `alt=""`.
+- Mid-page `cta-banner--bold-strip`: text + buttons stacked and centred.
+- Quote form: the 1336px floor is released once form_embed.js sizes the iframe (`.ghl-embed.is-sized`) - no white tail.
+- Suburb×service pages: `#related` is now "Also in <suburb> / More garage door services in <suburb>", rendered with the site's own services() card variant (id="related"). No "Nearby" label, no zoom-out link strip (removed by user).
+- `trustbar--quiet-editorial`: centred flex row, each item one line (`white-space:nowrap`), font clamp(.95rem,1.15vw,1.08rem); stacks on ≤720px. Used by Chandler, Kalispell.
+- Coverage (`areas`) variant `quiet-editorial` RETIRED (user, Chandler): removed from the pool; `RETIRED_SECTION_VARIANTS` in variation.js remaps any pinned site to `map`/`directory` on rebuild. Chandler now `map`, Jackson `directory`. 5 delivered sites (newark, manhattanbeach, springfield, weatherford, sunprairie) still carry it in the registry and will be remapped automatically if ever rebuilt.
+- **LOCKED: hendersongaragedoorpros.com** (user 2026-10-12). `config/locked-sites.js`; CLI refuses it and batch.js skips it unless `--unlock hendersongaragedoorpros.com`. Never rebuild or edit it without the user's explicit instruction for that site.
+- Mid CTA `cta-banner--filled-brand` redesigned (user, Chandler): split banner, 2-line message left + buttons right, corner glow, no clip-path notch; stacks + centres ≤1100px; text clamp(1.15rem,1rem+1vw,1.65rem). Sites: chandler, daytonabeach, desplaines, fayetteville, kalispell, longview.
+- Blog cards (`.post-card`, homepage + blog index): equal height, "Learn more →" (was "Read guide →") pinned to the card bottom. Henderson got ONLY this change, patched directly into its dist files (user-approved 2026-10-12) - a full rebuild would also have reshuffled its service images. Henderson is still locked.
+- Homepage About (`.home-about .prose-media`): ≤1024px stacks photo on top (16:9) then text; desktop keeps side-by-side alternating. Henderson got only this CSS rule, patched into its dist files (user-approved).
+- **LOCKED: chandlergaragedoorco.com** too (user 2026-10-12, manually checked). Same rules as Henderson.
+- Hero stats `hero__stats--boxed-grid-table` (user, Georgetown): glass panel (rgba(10,12,16,.62)+blur) on dark heroes / solid surface elsewhere, one row on desktop (auto columns for any count), 2x2 tablet + phone, centred cells, labels full opacity. Only Georgetown uses it among the 22.
+- Hero `diagnostic-panel` (Georgetown, Lehigh Acres): min-height clamp(600px,85svh,900px), content vertically centred (phones clamp(520px,78svh,720px)). Do NOT set width on `.hero > .container` - `.container` sizes itself via `width:var(--container)`; overriding it made the hero full-bleed (fixed same day).
+- Dark photo heroes (fullbleed-dark, text-only-underline, diagnostic-panel): `.hero__cta .btn--ghost` is white text/outline on a light glass fill (was brand-red on 6% tint, near-invisible). Sites: georgetown, lehighacres, daytonabeach, jackson.
+- **LOCKED: georgetowngaragedoorpros.com** too (user 2026-10-12).
+- Stats `ring` variant (.stats-ring) redesigned (user, Addison): 4 equal columns (2x2 ≤820px), 148px filled disc with conic brand-gradient ring (124px on ≤560px), icon INSIDE the disc above the number (.sr-n), full-colour label. Sites: addison, elizabethtown.
+- Ring stats follow-up: icon is a real round chip in the disc (2.9rem, 26px glyph; 2.35rem on ≤560px), disc 160px (124px ≤560px); `.sr-cell:hover .sr-circle .stat-ic` fills the chip (no scale) - the shared `.sr-cell:hover .stat-ic` fill on a bare glyph was the "hover bg issue".
+- Inner pages with a sidebar (`.content-layout .content-main .prose-block`): no 68ch cap - text fills the main column (gap to sidebar = the 48px grid gap, was ~340px). Full-width pages keep 68ch. Also patched into locked henderson/chandler/georgetown dist files (user-approved, rule only).

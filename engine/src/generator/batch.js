@@ -19,6 +19,7 @@ import { validateSite } from '../qa/validate-site.js';
 import { controlRow, writeControlSheet, writeErrorReport } from './report.js';
 import { writeSectionUsageReport } from './section-usage-report.js';
 import { saveImageUsage } from '../engine/image-usage.js';
+import { LOCKED_SITES } from '../../config/locked-sites.js';
 
 /**
  * @param {object} [opts]
@@ -51,6 +52,12 @@ export function runBatch(opts = {}) {
 
   for (const business of businesses) {
     idx++;
+    // Locked sites (config/locked-sites.js) are never written unless the
+    // caller explicitly unlocked this one - a second guard behind the CLI's.
+    if (LOCKED_SITES.has(String(business.domain).toLowerCase()) && !business.__unlocked) {
+      log(`[${idx}/${businesses.length}] ${business.domain} → LOCKED, skipped`);
+      continue;
+    }
     try {
       // Uniqueness is measured against everything already recorded (this run +
       // prior runs) EXCEPT this business's own prior record, so designs never

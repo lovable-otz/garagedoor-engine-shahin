@@ -13,7 +13,7 @@ import { CORE_SERVICE_IDS, SERVICE_BY_ID } from '../../config/services.js';
 import { siteContent } from '../../config/site-content.js';
 import { businessImages } from '../../config/business-images.js';
 import { businessContacts } from '../../config/business-contacts.js';
-import { QUOTE_FORM_URL, QUOTE_FORM_DOMAINS } from '../../config/quote-form.js';
+import { QUOTE_FORM_URL, QUOTE_FORM_HEIGHT } from '../../config/quote-form.js';
 import { clean, slugify } from '../util/strings.js';
 
 const US_STATES = new Set([
@@ -127,7 +127,9 @@ export function normalizeBusiness(raw, cityIndex) {
   // Scoped deliberately: site-content.js is one object for all 1000
   // businesses, and the 36 shipped sites must not pick this up on an unrelated
   // regeneration. See config/quote-form.js for how to widen the rollout.
-  if (QUOTE_FORM_DOMAINS.has(b.domain)) b.site.ghlFormUrl = QUOTE_FORM_URL;
+  // Engine-wide since 2026-10-12 (one form for every site).
+  b.site.ghlFormUrl = QUOTE_FORM_URL;
+  b.site.ghlFormHeight = QUOTE_FORM_HEIGHT;
   // REAL per-business contact details (config/business-contacts.js, generated
   // from the assignment sheet by scripts/sync-contacts.mjs) take precedence
   // over everything else. Before this, phone came from site-content.js - ONE
